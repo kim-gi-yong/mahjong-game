@@ -68,6 +68,105 @@ class YakuEngine {
     }
 
     // ==========================================================================
+    // 1-1. 도라(Dora / 懸賞牌) 순환 및 판별 알고리즘
+    // ==========================================================================
+
+    /**
+     * 도라 표시패(Indicator)로부터 실제 도라(Dora Target) 정보 계산
+     * - 수패(만/통/삭): 1 -> 2 -> ... -> 9 -> 1 순환
+     * - 풍패(동/남/서/북): 동(east) -> 남(south) -> 서(west) -> 북(north) -> 동(east) 순환
+     * - 삼원패(백/발/중): 백(white) -> 발(green) -> 중(red) -> 백(white) 순환
+     * @param {Object} indicatorTile 도라 표시패 객체 { type, value }
+     * @returns {Object} { type, value, name, corner }
+     */
+    static getDoraTarget(indicatorTile) {
+        if (!indicatorTile) return null;
+        const type = indicatorTile.type;
+        const val = indicatorTile.value;
+
+        // 1. 수패 (만수/통수/삭수) : 1~9 순환 (9 다음은 1)
+        if (['wan', 'pin', 'sou'].includes(type)) {
+            const num = Number(val);
+            const nextNum = (num >= 9) ? 1 : (num + 1);
+            const typeNames = { wan: '만', pin: '통', sou: '삭' };
+            const typeCorners = { wan: '萬', pin: '筒', sou: '索' };
+            return {
+                type,
+                value: nextNum,
+                name: `${nextNum}${typeNames[type] || ''}`,
+                corner: `${nextNum}${typeCorners[type] || ''}`
+            };
+        }
+
+        // 2. 풍패 (동/남/서/북) : 東 -> 南 -> 西 -> 北 -> 東
+        if (type === 'wind') {
+            const windCycle = ['east', 'south', 'west', 'north'];
+            const windNames = { east: '동', south: '남', west: '서', north: '북' };
+            const windCorners = { east: '東', south: '南', west: '西', north: '北' };
+            const normalized = this.normalizeWind(val);
+            const idx = windCycle.indexOf(normalized);
+            const nextWind = (idx !== -1) ? windCycle[(idx + 1) % 4] : 'east';
+            return {
+                type: 'wind',
+                value: nextWind,
+                name: windNames[nextWind],
+                corner: windCorners[nextWind]
+            };
+        }
+
+        // 3. 삼원패 (백/발/중) : 白 -> 發 -> 中 -> 白
+        if (type === 'dragon') {
+            const dragonCycle = ['white', 'green', 'red'];
+            const dragonNames = { white: '백', green: '발', red: '중' };
+            const dragonCorners = { white: '白', green: '發', red: '中' };
+            let dragVal = String(val).toLowerCase();
+            if (dragVal === '백' || dragVal === '白') dragVal = 'white';
+            if (dragVal === '발' || dragVal === '發') dragVal = 'green';
+            if (dragVal === '중' || dragVal === '中') dragVal = 'red';
+            const idx = dragonCycle.indexOf(dragVal);
+            const nextDrag = (idx !== -1) ? dragonCycle[(idx + 1) % 3] : 'white';
+            return {
+                type: 'dragon',
+                value: nextDrag,
+                name: dragonNames[nextDrag],
+                corner: dragonCorners[nextDrag]
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * 손패의 특정 타일이 도라 대상 패와 일치하는지 판별
+     */
+    static isDoraMatch(tile, doraTarget) {
+        if (!tile || !doraTarget) return false;
+        if (tile.type !== doraTarget.type) return false;
+        return String(tile.value) === String(doraTarget.value);
+    }
+
+    /**
+     * 완성 손패 14장 내에 도라 표시패에 해당하는 실제 도라가 몇 장 있는지 계산
+     * @param {Array} tiles 14장의 패 목록
+     * @param {Array|Object} doraIndicators 도라 표시패 목록
+     * @returns {number} 총 도라 장수
+     */
+    static countDora(tiles, doraIndicators) {
+        if (!tiles || !doraIndicators) return 0;
+        const indicators = Array.isArray(doraIndicators) ? doraIndicators : [doraIndicators];
+        let totalCount = 0;
+
+        indicators.forEach(ind => {
+            const target = this.getDoraTarget(ind);
+            if (!target) return;
+            const matches = tiles.filter(t => this.isDoraMatch(t, target));
+            totalCount += matches.length;
+        });
+
+        return totalCount;
+    }
+
+    // ==========================================================================
     // 2. 멘츠(Mentsu) 조합 및 패 분해 알고리즘 (Decomposition)
     // ==========================================================================
 
@@ -747,6 +846,7 @@ class YakuEngine {
      * @param {string} options.roundWind 장풍패 ('east' | 'south' ...)
      * @param {string} options.seatWind 자풍패 ('east' | 'south' ...)
      * @param {boolean} options.isRiichi 리치 선언 여부
+     * @param {Array|Object} options.doraIndicators 도라 표시패 목록 또는 단일 객체
      * @param {number} options.customDora 보너스 도라 개수
      */
     static evaluateHand(options = {}) {
@@ -759,6 +859,7 @@ class YakuEngine {
             roundWind = 'east',
             seatWind = 'east',
             isRiichi = false,
+            doraIndicators = [],
             customDora = 0
         } = options;
 
@@ -766,6 +867,22 @@ class YakuEngine {
         const sortedTiles = [...tiles].sort((a, b) => a.sortOrder - b.sortOrder);
         const normRoundWind = this.normalizeWind(roundWind);
         const normSeatWind = this.normalizeWind(seatWind);
+
+        // 도라(Dora) 계산: 도라 표시패의 다음 패를 검사하여 일치하는 손패 장수 계산
+        const indicatorsList = Array.isArray(doraIndicators)
+            ? doraIndicators
+            : (doraIndicators ? [doraIndicators] : []);
+        const calculatedDora = this.countDora(tiles, indicatorsList);
+        const totalDora = calculatedDora + (customDora || 0);
+
+        let doraDesc = `보너스 현상패 (+${totalDora}판)`;
+        if (indicatorsList.length > 0 && indicatorsList[0]) {
+            const firstInd = indicatorsList[0];
+            const target = this.getDoraTarget(firstInd);
+            if (target) {
+                doraDesc = `도라 표시패 [${firstInd.name}] ➔ 도라 [${target.name}] ${calculatedDora}장 매칭 (+${totalDora}판)`;
+            }
+        }
 
         // 컨텍스트 구조체 생성
         const ctx = {
@@ -779,7 +896,9 @@ class YakuEngine {
             roundWind: normRoundWind,
             seatWind: normSeatWind,
             isRiichi,
-            isMenzenTenpai: isMenzen
+            isMenzenTenpai: isMenzen,
+            totalDora,
+            doraDesc
         };
 
         // ----------------------------------------------------------------------
@@ -818,8 +937,8 @@ class YakuEngine {
             if (this.checkRiichi(ctx)) {
                 yakuList.push({ name: '리치 (선언 화료)', hanzi: '立直', han: 1, desc: '멘젠 텐파이 선언 화료' });
             }
-            if (customDora > 0) {
-                yakuList.push({ name: `도라 (현상패 x${customDora})`, hanzi: '懸賞牌', han: customDora, desc: '보너스 행운의 현상패' });
+            if (totalDora > 0) {
+                yakuList.push({ name: `도라 (현상패 x${totalDora})`, hanzi: '懸賞牌', han: totalDora, desc: doraDesc });
             }
 
             const totalHan = yakuList.reduce((sum, y) => sum + y.han, 0);
@@ -1000,8 +1119,8 @@ class YakuEngine {
             }
 
             // (17) 보너스 도라 (Dora)
-            if (customDora > 0) {
-                yakuList.push({ name: `도라 (현상패 x${customDora})`, hanzi: '懸賞牌', han: customDora, desc: '보너스 행운의 현상패' });
+            if (totalDora > 0) {
+                yakuList.push({ name: `도라 (현상패 x${totalDora})`, hanzi: '懸賞牌', han: totalDora, desc: doraDesc });
             }
 
             // 기본 1판 보장 폴백

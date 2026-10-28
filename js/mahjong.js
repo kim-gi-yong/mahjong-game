@@ -90,6 +90,83 @@ class MahjongAudioSystem {
         return this.enabled;
     }
 
+    /**
+     * <audio> HTML 요소 안전 재생 헬퍼 (로드 상태 확인 및 오류 방지)
+     * @param {string} audioId 'sound-discard' | 'sound-draw' | 'sound-win'
+     */
+    playAudioElement(audioId) {
+        if (!this.enabled || typeof document === 'undefined') return false;
+        const audio = document.getElementById(audioId);
+        if (!audio) return false;
+
+        const src = audio.getAttribute('src');
+        if (!src || src.trim() === '') return false;
+
+        try {
+            audio.currentTime = 0;
+            const playPromise = audio.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+                playPromise.catch(() => {
+                    // 브라우저 자동 재생 제한 및 로드 에러 무시
+                });
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * 1. 패 버림 효과음 (sound-discard) : 둔탁한 '탁!' 타격음
+     */
+    playDiscardSound() {
+        if (!this.enabled) return;
+        this.playAudioElement('sound-discard');
+        // 신시사이저 타격음 병행(오디오 파일 미로드 시에도 100% 사운드 보장)
+        this.playTileClack();
+    }
+
+    /**
+     * 2. 패 쯔모/드로우 효과음 (sound-draw) : 스윽 하는 마찰음
+     */
+    playDrawSound() {
+        if (!this.enabled) return;
+        this.playAudioElement('sound-draw');
+        this.playTileDrawSynthesized();
+    }
+
+    /**
+     * 3. 화료/승리 효과음 (sound-win) : 경쾌한 승리 효과음
+     */
+    playWinSound() {
+        if (!this.enabled) return;
+        this.playAudioElement('sound-win');
+        this.playVictoryFanfare();
+        this.playCoinSound();
+    }
+
+    /**
+     * 드로우(스윽 마찰음) 신시사이저 합성음
+     */
+    playTileDrawSynthesized() {
+        if (!this.enabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(450, now);
+        osc.frequency.exponentialRampToValueAtTime(750, now + 0.08);
+
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.09);
+    }
+
     playTileClack() {
         if (!this.enabled) return;
         this.init();
@@ -191,6 +268,9 @@ class MahjongEngine {
     constructor() {
         this.fullDeck = [];
         this.wall = [];
+        this.deadWall = []; // 왕패 14장
+        this.doraIndicator = null; // 도라 표시패 (3번째 열 상단)
+        this.doraTarget = null; // 실제 도라 패 정보 { type, value, name, corner }
         this.roundIndex = 0; // 0: 동1국, 1: 동2국, 2: 동3국, 3: 동4국, 4: 남1국 ...
         this.dealerIndex = 0; // 딜러(친/오야): 0 (나), 1 (하가), 2 (대면), 3 (상가)
         
@@ -281,6 +361,13 @@ class MahjongEngine {
         this.shuffleWall();
         this.currentTurn = this.dealerIndex;
 
+        // 14장의 왕패(Dead Wall) 분리 및 도라 표시패 설정 (7열 2단 중 3번째 열 상단인 4번 인덱스)
+        this.deadWall = this.wall.splice(0, 14);
+        this.doraIndicator = this.deadWall[4];
+        this.doraTarget = (typeof YakuEngine !== 'undefined' && YakuEngine.getDoraTarget)
+            ? YakuEngine.getDoraTarget(this.doraIndicator)
+            : null;
+
         // 4명 모두 손패, 쯔모패, 공개패(Melds), 버림패 초기화
         this.players.forEach(p => {
             p.hand = [];
@@ -361,99 +448,25 @@ class MahjongEngine {
 
     /**
      * ==============================================================================
-     * ★ 기초 AI 휴리스틱(Heuristic) 타패 가치 평가 알고리즘
+     * ★ AI 봇 지능 판단 알고리즘 연동 (js/ai-bot.js 위임)
      * ==============================================================================
-     * [우선순위 규칙]
-     * 1순위: 혼자 있는 고립 자패 (풍패/삼원패) - 특히 객풍패 최우선 버림
-     * 2순위: 혼자 있는 1, 9 요구패 (주변에 2, 3이 없어 슌츠 구성 불가)
-     * 3순위: 혼자 있는 2, 8 요구 인접패
-     * 4순위: 혼자 있는 3~7 중장패 (양면 발전 가능성으로 가장 늦게 버림)
-     * 보존패: 완성된 슌츠, 또이츠(2장 머리/펑 대기), 커츠(3장 암커)
+     * 1순위: 혼자 있는 자패(동남서북백발중) 최우선 버림 (2장 이상 겹치면 절대 버리지 않음)
+     * 2순위: 혼자 있는 1과 9 요구패 버림
+     * 3순위: 완성된 몸통(3장), 머리(2장), 양면/연속 숫자 패 무조건 지킴
+     * 4순위: 위 조건에 해당하지 않는 붕 떠 있는 잉여 숫자 패 버림
      * ==============================================================================
      */
     evaluateTileDiscardPriority(tile, fullHand, roundWind = '東', botWind = '南') {
-        const type = tile.type;
-        const val = tile.value;
-
-        // 1. 손패 내에서 이 패와 동일한 패의 개수
-        const sameTiles = fullHand.filter(t => t.type === type && t.value === val);
-        const sameCount = sameTiles.length;
-
-        // 커츠 (동일 3장 이상) : 절대 버리지 않음!
-        if (sameCount >= 3) return -1000;
-
-        // 또이츠 (동일 2장) : 머리 또는 펑 대기 패로 강력 보존
-        if (sameCount === 2) return -300;
-
-        // --- 여기서부터는 손패에 혼자 1장만 있는 고립패 (sameCount === 1) ---
-
-        // 2. 자패 (바람패 / 삼원패) : 슌츠(연속패)를 만들 수 없으므로 1장짜리는 최우선 타패!
-        if (['wind', 'dragon'].includes(type)) {
-            let score = 1000; // 기본 자패 고립패 점수
-
-            if (type === 'dragon') {
-                // 삼원패 (백/발/중) : 누구든 3장 모으면 1판 역패이므로 살짝 가치 있음
-                score = 940;
-            } else if (type === 'wind') {
-                const windMap = { 'east': '東', 'south': '南', 'west': '西', 'north': '北' };
-                const currentWindChar = windMap[val] || val;
-
-                // 자풍패 (내가 속한 바람) 또는 장풍패 (현재 국의 바람)인 경우 역패 가능성
-                if (currentWindChar === botWind || currentWindChar === roundWind) {
-                    score = 900;
-                } else {
-                    // 객풍패 (나에게도 판에도 역이 안 되는 바람패) : 마작에서 가장 쓸모없는 패 -> 최우선 타패!
-                    score = 1050;
-                }
-            }
-
-            return score;
+        if (typeof AIBot !== 'undefined' && AIBot.evaluateTileUtility) {
+            const res = AIBot.evaluateTileUtility(tile, fullHand, { roundWind, botWind });
+            // 불필요도(점수가 낮을수록 버림 우선순위가 높음) 역산 점수 반환
+            return 2000 - res.score;
         }
-
-        // 3. 수패 (만수/통수/삭수) : 슌츠(연속패) 가능성 및 터미널(1, 9) 평가
-        const numVal = Number(val);
-        const sameSuitTiles = fullHand.filter(t => t.type === type);
-
-        // 주변 패 보유 여부
-        const hasMinus1 = sameSuitTiles.some(t => Number(t.value) === numVal - 1);
-        const hasPlus1  = sameSuitTiles.some(t => Number(t.value) === numVal + 1);
-        const hasMinus2 = sameSuitTiles.some(t => Number(t.value) === numVal - 2);
-        const hasPlus2  = sameSuitTiles.some(t => Number(t.value) === numVal + 2);
-
-        // (3-1) 이미 슌츠(완성 멘츠)의 일부인 경우
-        if ((hasMinus1 && hasPlus1) || (hasMinus2 && hasMinus1) || (hasPlus1 && hasPlus2)) {
-            return -200; // 완성된 슌츠 형태이므로 보존
-        }
-
-        // (3-2) 양면/변짱 타츠인 경우 (바로 옆에 인접패가 있음)
-        if (hasMinus1 || hasPlus1) {
-            // 1-2 또는 8-9 (변짱 타츠)
-            if ((numVal === 1 && hasPlus1) || (numVal === 9 && hasMinus1)) {
-                return 40;
-            }
-            // 2-3, 3-4, 4-5 등 (양면 타츠) : 매우 높은 가치로 보존
-            return -100;
-        }
-
-        // (3-3) 간짱 타츠인 경우 (한 칸 뛴 패가 있음 : 1-3, 4-6 등)
-        if (hasMinus2 || hasPlus2) {
-            return 80;
-        }
-
-        // (3-4) 완전히 혼자 덩그러니 있는 고립 수패 (주변 ±1, ±2가 전혀 없음)
-        // 1순위 자패에 이어, "그다음으로 1과 9(요구패)를 버리도록"
-        if (numVal === 1 || numVal === 9) {
-            return 600; // 고립된 1, 9 요구패 (자패 다음으로 최우선 타패!)
-        }
-        if (numVal === 2 || numVal === 8) {
-            return 400; // 고립된 2, 8 패
-        }
-        // 3 ~ 7 중장패 고립패
-        return 200; // 중장패는 슌츠 연결 확률이 가장 높으므로 고립패 중 가장 나중에 정리
+        return 0;
     }
 
     /**
-     * 봇의 손패와 쯔모패 중에서 휴리스틱 알고리즘으로 최적의 타패 선정 및 버리기 실행
+     * 봇의 손패와 쯔모패 중에서 AI 지능 판단 알고리즘(AIBot)으로 가장 쓸모없는 패를 찾아 버리기 실행
      */
     discardHeuristicTileForBot(botId) {
         const bot = this.players[botId];
@@ -466,16 +479,14 @@ class MahjongEngine {
         const roundWind = (this.roundIndex < 4) ? '東' : '南';
         const botWind = bot.wind;
 
-        let bestTile = allCandidates[0];
-        let maxScore = -99999;
+        let bestTile = null;
 
-        allCandidates.forEach(tile => {
-            const score = this.evaluateTileDiscardPriority(tile, allCandidates, roundWind, botWind);
-            if (score > maxScore) {
-                maxScore = score;
-                bestTile = tile;
-            }
-        });
+        // js/ai-bot.js의 지능형 타패 선정 엔진 호출 (가장 점수가 낮은 쓸모없는 패 선택)
+        if (typeof AIBot !== 'undefined' && AIBot.selectDiscardTile) {
+            bestTile = AIBot.selectDiscardTile(allCandidates, { roundWind, botWind, botId });
+        } else {
+            bestTile = allCandidates[0];
+        }
 
         return this.discardTile(botId, bestTile.uid);
     }
@@ -529,6 +540,17 @@ class MahjongEngine {
     sortHand(playerId = 0) {
         this.players[playerId].hand.sort((a, b) => a.sortOrder - b.sortOrder);
         return this.players[playerId].hand;
+    }
+
+    /**
+     * 특정 타일이 현재 도라 대상 패와 일치하는지 판별
+     * @param {Object} tile 검사할 타일 객체 { type, value }
+     * @returns {boolean}
+     */
+    isDoraTile(tile) {
+        if (!tile || !this.doraTarget) return false;
+        if (tile.type !== this.doraTarget.type) return false;
+        return String(tile.value) === String(this.doraTarget.value);
     }
 
     // ==========================================================================
@@ -764,8 +786,10 @@ class MahjongEngine {
      * @param {number} customDora 시연/보너스 도라 판수
      * @param {string} roundWind 현재 국 바람 ('east', 'south' 등)
      * @param {string} seatWind 플레이어 바람 ('east', 'south' 등)
+     * @param {Array} doraIndicators 도라 표시패 목록 (미전달 시 엔진의 doraIndicator 사용)
      */
-    calculateYakuAndScore(allTiles, winningTile, winType, melds = [], isDealer = true, customDora = 0, roundWind = 'east', seatWind = 'east') {
+    calculateYakuAndScore(allTiles, winningTile, winType, melds = [], isDealer = true, customDora = 0, roundWind = 'east', seatWind = 'east', doraIndicators = null) {
+        const indicators = doraIndicators || (this.doraIndicator ? [this.doraIndicator] : []);
         if (typeof YakuEngine !== 'undefined' && YakuEngine.evaluateHand) {
             return YakuEngine.evaluateHand({
                 tiles: allTiles,
@@ -776,6 +800,7 @@ class MahjongEngine {
                 roundWind,
                 seatWind,
                 isRiichi: (melds.length === 0),
+                doraIndicators: indicators,
                 customDora
             });
         }
@@ -892,6 +917,12 @@ class MahjongApp {
             wallCount: document.getElementById('wallCount'),
             deckCountDisplay: document.getElementById('deckCountDisplay'),
 
+            // 왕패(Dead Wall) 및 도라 표시패 엘리먼트
+            deadWallZone: document.getElementById('deadWallZone'),
+            deadWallRack: document.getElementById('deadWallRack'),
+            doraIndicatorName: document.getElementById('doraIndicatorName'),
+            doraTargetName: document.getElementById('doraTargetName'),
+
             // 승리 축하 모달 & 카지노 정산 영수증 엘리먼트
             winModal: document.getElementById('winModal'),
             winTitle: document.getElementById('winTitle'),
@@ -1006,20 +1037,22 @@ class MahjongApp {
     }
 
     /**
-     * 3D 마작 타일 엘리먼트 생성
+     * 3D 마작 타일 엘리먼트 생성 (도라 패인 경우 금빛 하이라이트 및 DORA 스파클 뱃지 부여)
      */
     createTileElement(tile, isNewDraw = false) {
+        const isDora = (this.engine && this.engine.isDoraTile) ? this.engine.isDoraTile(tile) : false;
         const el = document.createElement('div');
-        el.className = `mahjong-tile ${tile.subClass} ${isNewDraw ? 'is-new-draw' : ''}`;
+        el.className = `mahjong-tile ${tile.subClass} ${isNewDraw ? 'is-new-draw' : ''} ${isDora ? 'is-dora' : ''}`.trim();
         el.dataset.uid = tile.uid;
         el.setAttribute('role', 'button');
         el.setAttribute('tabindex', '0');
-        el.title = `${tile.name} (클릭하여 버리기)`;
+        el.title = isDora ? `${tile.name} (★도라 +1판! 클릭하여 버리기)` : `${tile.name} (클릭하여 버리기)`;
 
         el.innerHTML = `
             <div class="tile-corner-label">${tile.corner}</div>
             <div class="tile-symbol">${tile.unicode}</div>
             <div class="tile-sub-label">${tile.name}</div>
+            ${isDora ? '<span class="dora-sparkle-pill">✦ DORA</span>' : ''}
         `;
 
         el.addEventListener('click', () => {
@@ -1048,7 +1081,7 @@ class MahjongApp {
         }
 
         // 1. 타패 실행
-        this.audio.playTileClack();
+        this.audio.playDiscardSound();
         const discarded = this.engine.discardTile(0, tile.uid);
         this.latestDiscardUid = discarded.uid;
 
@@ -1105,7 +1138,7 @@ class MahjongApp {
 
         // 플레이어 자동 쯔모 드로우
         const playerDrawn = this.engine.drawTileForPlayer(0);
-        this.audio.playTileClack();
+        this.audio.playDrawSound();
         this.renderTsumoSlot(true);
         this.updateHud();
 
@@ -1151,6 +1184,7 @@ class MahjongApp {
 
             // 봇 드로우
             this.engine.drawTileForPlayer(botId);
+            this.audio.playDrawSound();
             this.updateHud();
             await this.sleep(400);
         }
@@ -1159,7 +1193,7 @@ class MahjongApp {
         const discarded = this.engine.discardHeuristicTileForBot(botId);
         if (!discarded) return false;
 
-        this.audio.playTileClack();
+        this.audio.playDiscardSound();
         this.latestDiscardUid = discarded.uid;
         this.renderAllRivers();
         this.dom.handGuideMsg.textContent = `${bot.name}이(가) [${discarded.name}]을(를) 버렸습니다.`;
@@ -1364,12 +1398,32 @@ class MahjongApp {
             { uid: 'ron_dg_3', type: 'dragon', value: 'green', name: '발', corner: '發', unicode: '\u{1F005}', sortOrder: 502, subClass: 'tile-dragon-green' }
         ];
 
+        // 도라 표시패를 4통으로 설정 -> 실제 도라는 5통! (손패의 5통 2장이 도라로 금빛 하이라이트)
+        const simDoraIndicator = {
+            uid: `dora_ind_p4_${Date.now()}`,
+            type: 'pin',
+            value: 4,
+            name: '4통',
+            corner: '4筒',
+            unicode: '\u{1F01C}',
+            sortOrder: 204,
+            subClass: 'type-pin'
+        };
+        this.engine.doraIndicator = simDoraIndicator;
+        this.engine.doraTarget = (typeof YakuEngine !== 'undefined' && YakuEngine.getDoraTarget)
+            ? YakuEngine.getDoraTarget(simDoraIndicator)
+            : { type: 'pin', value: 5, name: '5통', corner: '5筒' };
+        if (this.engine.deadWall && this.engine.deadWall.length >= 5) {
+            this.engine.deadWall[4] = simDoraIndicator;
+        }
+
         this.renderPlayerHand();
         this.renderPlayerMelds();
         this.renderTsumoSlot();
+        this.renderDeadWall();
         this.updateHud();
 
-        this.dom.handGuideMsg.textContent = '⚡ [론 시연] 4만 대기 텐파이 세팅 완료! 상가(Bot 3)가 4만을 버립니다...';
+        this.dom.handGuideMsg.textContent = '⚡ [론 시연] 4만 대기 텐파이 세팅 완료! (도라: 5통 2장 보유) 상가(Bot 3)가 4만을 버립니다...';
         await this.sleep(550);
 
         const simDiscard = {
@@ -1385,7 +1439,7 @@ class MahjongApp {
 
         this.engine.players[3].discards.push(simDiscard);
         this.latestDiscardUid = simDiscard.uid;
-        this.audio.playTileClack();
+        this.audio.playDiscardSound();
         this.renderAllRivers();
 
         const chiOptions = this.engine.checkChi(simDiscard, player.hand);
@@ -1450,12 +1504,32 @@ class MahjongApp {
             { uid: 'tsumo_dw_1', type: 'dragon', value: 'white', name: '백', corner: '白', unicode: '\u{1F006}', sortOrder: 501, subClass: 'tile-dragon-white' }
         ];
 
+        // 도라 표시패를 9통으로 설정 -> 실제 도라는 1통! (손패의 1통 3장이 도라로 금빛 하이라이트)
+        const simDoraIndicator = {
+            uid: `dora_ind_p9_${Date.now()}`,
+            type: 'pin',
+            value: 9,
+            name: '9통',
+            corner: '9筒',
+            unicode: '\u{1F021}',
+            sortOrder: 209,
+            subClass: 'type-pin'
+        };
+        this.engine.doraIndicator = simDoraIndicator;
+        this.engine.doraTarget = (typeof YakuEngine !== 'undefined' && YakuEngine.getDoraTarget)
+            ? YakuEngine.getDoraTarget(simDoraIndicator)
+            : { type: 'pin', value: 1, name: '1통', corner: '1筒' };
+        if (this.engine.deadWall && this.engine.deadWall.length >= 5) {
+            this.engine.deadWall[4] = simDoraIndicator;
+        }
+
         this.renderPlayerHand();
         this.renderPlayerMelds();
         this.renderTsumoSlot();
+        this.renderDeadWall();
         this.updateHud();
 
-        this.dom.handGuideMsg.textContent = '👑 [쯔모 시연] 혼일색 백 대기 텐파이 세팅 완료! 패산에서 [백]을 쯔모합니다...';
+        this.dom.handGuideMsg.textContent = '👑 [쯔모 시연] 혼일색 백 대기 텐파이 세팅 완료! (도라: 1통 3장 보유) 패산에서 [백]을 쯔모합니다...';
         await this.sleep(600);
 
         // 결정타 백 쯔모
@@ -1471,7 +1545,7 @@ class MahjongApp {
         };
 
         player.tsumoTile = drawnWhite;
-        this.audio.playTileClack();
+        this.audio.playDrawSound();
         this.renderTsumoSlot(true);
         this.updateHud();
 
@@ -1488,8 +1562,7 @@ class MahjongApp {
      * 승리(론/쯔모 화료) 축하 모달 팝업 및 화려한 카지노 정산 영수증 렌더링
      */
     triggerVictory(type, winningTile, targetPlayerName = '', demoScenario = null, fromPlayerId = null) {
-        this.audio.playVictoryFanfare();
-        this.audio.playCoinSound();
+        this.audio.playWinSound();
         const player = this.engine.players[0];
 
         // 1. 전체 14장의 패 수집 (손패 + 쯔모패/론패 + 공개패)
@@ -1508,8 +1581,8 @@ class MahjongApp {
             allWinningTiles.push(...m.tiles);
         });
 
-        // 2. 도라 판수 (론 시연 시 도라 2판 보너스)
-        const doraCount = (demoScenario === 'ron' || type === 'ron') ? 2 : 0;
+        // 2. 도라 판수 (실제 도라 표시패를 통해 YakuEngine이 계산)
+        const customDora = 0;
 
         // 3. 수학적 족보 판별 엔진 실행 (js/yaku-engine.js 연동)
         const roundInfo = this.engine.getRoundInfo();
@@ -1522,9 +1595,10 @@ class MahjongApp {
             type,
             player.melds,
             (player.wind === '東' || this.engine.dealerIndex === 0), // 친(東家) 여부 판정
-            doraCount,
+            customDora,
             roundWind,
-            seatWind
+            seatWind,
+            [this.engine.doraIndicator]
         );
 
         // ★ 결과 창(영수증)이 떴을 때는 바로 칩을 증감시키지 않고,
@@ -1573,21 +1647,23 @@ class MahjongApp {
             }
         }
 
-        // 6. 완성된 14장 마작패 입체 쇼케이스 렌더링 (결정타 패 황금 '和' 강조)
+        // 6. 완성된 14장 마작패 입체 쇼케이스 렌더링 (결정타 패 황금 '和' 및 도라 패 골드 강조)
         if (this.dom.winHandShowcase) {
             this.dom.winHandShowcase.innerHTML = '';
             const sortedWinningTiles = [...allWinningTiles].sort((a, b) => a.sortOrder - b.sortOrder);
             sortedWinningTiles.forEach(tile => {
                 const isAgari = (winningTile && tile.uid === winningTile.uid);
+                const isDora = (this.engine && this.engine.isDoraTile) ? this.engine.isDoraTile(tile) : false;
                 const tileEl = document.createElement('div');
                 const typeClass = tile.type ? `type-${tile.type}` : '';
                 const subClass = tile.subClass ? tile.subClass : '';
-                tileEl.className = `mahjong-tile ${typeClass} ${subClass} ${isAgari ? 'is-winning-agari' : ''}`.trim();
-                tileEl.title = isAgari ? `${tile.name} (화료 결정타 패!)` : tile.name;
+                tileEl.className = `mahjong-tile ${typeClass} ${subClass} ${isAgari ? 'is-winning-agari' : ''} ${isDora ? 'is-dora' : ''}`.trim();
+                tileEl.title = isAgari ? `${tile.name} (화료 결정타 패!)` : (isDora ? `${tile.name} (★도라 +1판)` : tile.name);
                 tileEl.innerHTML = `
                     <div class="tile-corner-label">${tile.corner}</div>
                     <div class="tile-symbol">${tile.unicode}</div>
                     <div class="tile-sub-label">${tile.name}</div>
+                    ${isDora ? '<span class="dora-sparkle-pill">✦ DORA</span>' : ''}
                 `;
                 this.dom.winHandShowcase.appendChild(tileEl);
             });
@@ -1734,12 +1810,13 @@ class MahjongApp {
         // 2. 친(딜러) 이전 및 다음 국('동 2국', '동 3국' 등) 시작
         const newRoundData = this.engine.advanceToNextRound();
 
-        // 3. UI 갱신 (헤더, 펠트, 버림패, 봇 손패, 타일 랙)
+        // 3. UI 갱신 (헤더, 펠트, 버림패, 봇 손패, 타일 랙, 왕패)
         this.renderPlayerHand();
         this.renderPlayerMelds();
         this.renderTsumoSlot(this.engine.dealerIndex === 0);
         this.renderBotHands();
         this.renderAllRivers();
+        this.renderDeadWall();
         this.updateSeatDisplay();
         this.updateTurnIndicators(this.engine.dealerIndex);
         this.updateHud();
@@ -1785,6 +1862,7 @@ class MahjongApp {
         this.renderTsumoSlot(true);
         this.renderBotHands();
         this.renderAllRivers();
+        this.renderDeadWall();
         this.updateSeatDisplay();
         this.updateChipsDisplay();
         this.updateTurnIndicators(0);
@@ -1814,7 +1892,7 @@ class MahjongApp {
             return;
         }
 
-        this.audio.playTileClack();
+        this.audio.playDrawSound();
         this.renderTsumoSlot(true);
         this.updateHud();
         this.dom.handGuideMsg.textContent = `[${drawn.name}] 쯔모! 버릴 패 1장을 클릭하세요.`;
@@ -1851,18 +1929,74 @@ class MahjongApp {
 
             meld.tiles.forEach(tile => {
                 const isClaimed = (meld.claimedTile && tile.uid === meld.claimedTile.uid);
+                const isDora = (this.engine && this.engine.isDoraTile) ? this.engine.isDoraTile(tile) : false;
                 const tileEl = document.createElement('div');
-                tileEl.className = `meld-tile ${tile.subClass} ${isClaimed ? 'claimed-tile' : ''}`;
+                tileEl.className = `meld-tile ${tile.subClass} ${isClaimed ? 'claimed-tile' : ''} ${isDora ? 'is-dora' : ''}`.trim();
                 tileEl.innerHTML = `
                     <div class="m-corner">${tile.corner}</div>
                     <div class="m-symbol">${tile.unicode}</div>
                     <div class="m-name">${tile.name}</div>
+                    ${isDora ? '<span class="dora-sparkle-pill">✦ DORA</span>' : ''}
                 `;
                 meldSetEl.appendChild(tileEl);
             });
 
             this.dom.playerMelds.appendChild(meldSetEl);
         });
+    }
+
+    /**
+     * 14장의 왕패(Dead Wall) 7열 2단 구조 및 도라 표시패(Dora Indicator) 렌더링
+     */
+    renderDeadWall() {
+        if (!this.dom.deadWallRack || !this.engine.deadWall || this.engine.deadWall.length === 0) return;
+
+        const indicator = this.engine.doraIndicator;
+        const target = this.engine.doraTarget;
+
+        if (this.dom.doraIndicatorName && indicator) {
+            this.dom.doraIndicatorName.textContent = indicator.name;
+        }
+        if (this.dom.doraTargetName && target) {
+            this.dom.doraTargetName.textContent = target.name;
+        }
+
+        this.dom.deadWallRack.innerHTML = '';
+
+        // 7열(Stack 0 ~ 6) 2단 구조 (상단: 짝수 인덱스 0,2,4,6,8,10,12 / 하단: 홀수 인덱스 1,3,5,7,9,11,13)
+        // 3번째 열(인덱스 2): 상단 패(인덱스 4)가 도라 표시패로 앞면 뒤집힘!
+        for (let col = 0; col < 7; col++) {
+            const stackEl = document.createElement('div');
+            stackEl.className = 'dead-wall-stack';
+
+            const upperTile = this.engine.deadWall[col * 2];
+            const lowerTile = this.engine.deadWall[col * 2 + 1];
+
+            // 상단 타일 (3번째 열 col === 2인 경우 도라 표시패로 앞면 공개)
+            const upperEl = document.createElement('div');
+            if (col === 2 && upperTile) {
+                upperEl.className = `dead-wall-tile face-up is-dora-indicator ${upperTile.subClass || `type-${upperTile.type}`}`;
+                upperEl.title = `도라 표시패: [${upperTile.name}] ➔ 실제 도라: [${target ? target.name : ''}] (+1판)`;
+                upperEl.innerHTML = `
+                    <div class="dw-corner">${upperTile.corner}</div>
+                    <div class="dw-symbol">${upperTile.unicode}</div>
+                    <div class="dw-name">${upperTile.name}</div>
+                    <div class="dw-dora-badge">DORA</div>
+                `;
+            } else {
+                upperEl.className = 'dead-wall-tile face-down';
+                upperEl.title = (col < 2) ? '영상패 (嶺上牌 - 미공개)' : '왕패 (미공개)';
+            }
+
+            // 하단 타일 (우라도라 등 모두 뒷면)
+            const lowerEl = document.createElement('div');
+            lowerEl.className = 'dead-wall-tile face-down';
+            lowerEl.title = (col === 2) ? '우라도라 표시패 (裏懸賞 - 화료 시 공개)' : '왕패 (미공개)';
+
+            stackEl.appendChild(upperEl);
+            stackEl.appendChild(lowerEl);
+            this.dom.deadWallRack.appendChild(stackEl);
+        }
     }
 
     renderBotHands() {

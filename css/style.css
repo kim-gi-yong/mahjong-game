@@ -547,6 +547,248 @@ body {
     color: #8c9e92;
 }
 
+/* ==========================================================================
+   4-1. 왕패 (Dead Wall 14장) & 도라 표시패(Dora Indicator) 영역
+   ========================================================================== */
+.dead-wall-zone {
+    width: 100%;
+    max-width: 380px;
+    background: radial-gradient(circle at center, rgba(30, 20, 10, 0.88) 0%, rgba(12, 6, 2, 0.95) 100%);
+    border: 1.5px solid var(--gold-primary);
+    border-radius: 12px;
+    padding: 6px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 
+        0 4px 16px rgba(0, 0, 0, 0.7),
+        0 0 12px rgba(212, 175, 55, 0.25),
+        inset 0 1px 1px rgba(255, 255, 255, 0.15);
+    z-index: 8;
+    margin: 2px 0 4px 0;
+}
+
+.dead-wall-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+    padding-bottom: 4px;
+    gap: 8px;
+}
+
+.dead-wall-title-box {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.dead-wall-icon {
+    font-size: 0.85rem;
+}
+
+.dead-wall-title {
+    font-family: var(--font-heading);
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: var(--gold-light);
+    letter-spacing: 0.5px;
+}
+
+.dead-wall-count-badge {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    color: var(--gold-primary);
+    font-size: 0.58rem;
+    font-weight: 800;
+    padding: 0 4px;
+    border-radius: 4px;
+}
+
+/* 도라 인디케이터 상단 상태 캡슐 */
+.dora-indicator-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid var(--gold-primary);
+    border-radius: 14px;
+    padding: 2px 8px;
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+}
+
+.dora-pill-tag {
+    font-family: var(--font-heading);
+    font-size: 0.55rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #ffd700 0%, #ff9800 100%);
+    color: #2b1700;
+    padding: 1px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+}
+
+.dora-indicator-text {
+    font-size: 0.65rem;
+    color: #cbd5e1;
+}
+
+.dora-arrow {
+    font-size: 0.65rem;
+    color: var(--gold-primary);
+}
+
+.dora-target-text {
+    font-size: 0.65rem;
+    color: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.gold-glow-text {
+    color: #ffe066;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
+}
+
+.dora-han-tag {
+    font-size: 0.55rem;
+    font-weight: 800;
+    color: #ffd700;
+    background: rgba(183, 28, 28, 0.85);
+    border: 1px solid #ffd54f;
+    padding: 0 3px;
+    border-radius: 3px;
+}
+
+/* 7열 2단 왕패 랙 */
+.dead-wall-rack {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.dead-wall-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+    position: relative;
+}
+
+/* 3D 미니 왕패 타일 기본 */
+.dead-wall-tile {
+    width: 26px;
+    height: 34px;
+    border-radius: 3px;
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* 뒷면 (Face-Down) 13장: 고급 카지노 에메랄드/비취 패턴 뒷면 */
+.dead-wall-tile.face-down {
+    background: linear-gradient(145deg, #1b4d36 0%, #0d281c 85%, #081a12 100%);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    box-shadow: 
+        0 1px 0 rgba(255, 255, 255, 0.25) inset,
+        0 -1px 0 rgba(0, 0, 0, 0.6) inset,
+        0 2px 3px rgba(0, 0, 0, 0.7);
+    cursor: default;
+}
+
+.dead-wall-tile.face-down::after {
+    content: '🀫';
+    font-size: 1.1rem;
+    color: rgba(212, 175, 55, 0.22);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* 앞면 (Face-Up) 도라 표시패: 1장만 눈부시게 뒤집힘! */
+.dead-wall-tile.face-up.is-dora-indicator {
+    background: linear-gradient(180deg, #ffffff 0%, #fdfbf7 75%, #ebe2ce 100%);
+    border: 2px solid #ffd700 !important;
+    padding: 1px;
+    box-shadow: 
+        0 0 14px rgba(255, 215, 0, 0.85),
+        0 3px 6px rgba(0, 0, 0, 0.6),
+        inset 0 0 6px rgba(255, 235, 100, 0.5);
+    animation: doraIndicatorPulse 2.2s infinite ease-in-out;
+    cursor: pointer;
+    z-index: 5;
+}
+
+@keyframes doraIndicatorPulse {
+    0%, 100% {
+        box-shadow: 0 0 12px rgba(255, 215, 0, 0.75), 0 3px 6px rgba(0, 0, 0, 0.6);
+        border-color: #ffd700;
+        transform: translateY(0);
+    }
+    50% {
+        box-shadow: 0 0 22px rgba(255, 235, 100, 1), 0 5px 10px rgba(0, 0, 0, 0.8);
+        border-color: #fff59d;
+        transform: translateY(-2px);
+    }
+}
+
+.dead-wall-tile.face-up .dw-corner {
+    font-size: 0.46rem;
+    font-weight: 800;
+    line-height: 1;
+    align-self: flex-start;
+    padding-left: 1px;
+}
+
+.dead-wall-tile.face-up .dw-symbol {
+    font-size: 1.15rem;
+    line-height: 1;
+    margin-top: -2px;
+}
+
+.dead-wall-tile.face-up .dw-name {
+    font-size: 0.42rem;
+    font-weight: 700;
+    color: #4b4436;
+    line-height: 1;
+    margin-bottom: 1px;
+}
+
+.dead-wall-tile.face-up .dw-dora-badge {
+    position: absolute;
+    top: -5px;
+    right: -4px;
+    font-size: 0.42rem;
+    font-weight: 900;
+    color: #3b2000;
+    background: linear-gradient(135deg, #ffe066 0%, #ffb300 100%);
+    padding: 0 2px;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    pointer-events: none;
+    letter-spacing: 0.3px;
+}
+
+/* 수패별 색상 적용 */
+.dead-wall-tile.type-wan .dw-corner, .dead-wall-tile.type-wan .dw-symbol { color: var(--color-wan); }
+.dead-wall-tile.type-pin .dw-corner, .dead-wall-tile.type-pin .dw-symbol { color: var(--color-pin); }
+.dead-wall-tile.type-sou .dw-corner, .dead-wall-tile.type-sou .dw-symbol { color: var(--color-sou); }
+.dead-wall-tile.type-wind .dw-corner, .dead-wall-tile.type-wind .dw-symbol { color: var(--color-wind); }
+.dead-wall-tile.tile-dragon-white .dw-corner, .dead-wall-tile.tile-dragon-white .dw-symbol { color: var(--color-dragon-white); }
+.dead-wall-tile.tile-dragon-green .dw-corner, .dead-wall-tile.tile-dragon-green .dw-symbol { color: var(--color-dragon-green); }
+.dead-wall-tile.tile-dragon-red .dw-corner, .dead-wall-tile.tile-dragon-red .dw-symbol { color: var(--color-dragon-red); }
+
 /* 5. 3D 미니 버림패 타일 디자인 (4인 뷰에 최적화된 36px x 48px) */
 .tile-discarded {
     width: 36px;
@@ -922,6 +1164,88 @@ body {
 @keyframes drawBounce {
     0% { transform: translateY(-30px) scale(0.85); opacity: 0.3; }
     100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ==========================================================================
+   도라(Dora) 패 하이라이트 효과: 금빛 테두리 & 럭셔리 반짝임(Shimmer)
+   ========================================================================== */
+.mahjong-tile.is-dora {
+    border: 2.5px solid #ffd700 !important;
+    position: relative;
+    animation: doraGlowPulse 2.4s infinite ease-in-out;
+}
+
+@keyframes doraGlowPulse {
+    0%, 100% {
+        box-shadow: 
+            0 0 14px rgba(255, 215, 0, 0.75),
+            inset 0 0 8px rgba(255, 223, 70, 0.4),
+            0 4px 0 #9f8f6b,
+            0 6px 0 var(--tile-back-green),
+            0 10px 16px rgba(0, 0, 0, 0.6);
+        border-color: #ffd700;
+    }
+    50% {
+        box-shadow: 
+            0 0 24px rgba(255, 235, 100, 0.95),
+            inset 0 0 12px rgba(255, 235, 100, 0.7),
+            0 4px 0 #9f8f6b,
+            0 6px 0 var(--tile-back-green),
+            0 12px 20px rgba(255, 215, 0, 0.45);
+        border-color: #fff9a6;
+    }
+}
+
+/* 도라 패 사선 광택 반짝임(Shimmer) 효과 */
+.mahjong-tile.is-dora::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(
+        120deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.65) 50%, 
+        transparent 100%
+    );
+    transform: skewX(-25deg);
+    animation: doraShimmer 3.2s infinite ease-in-out;
+    pointer-events: none;
+    border-radius: 4px;
+    z-index: 3;
+}
+
+@keyframes doraShimmer {
+    0% { left: -120%; }
+    22%, 100% { left: 160%; }
+}
+
+/* 도라 패 우측 상단 미니 골드 스파클 뱃지 */
+.dora-sparkle-pill {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 0.52rem;
+    font-weight: 900;
+    font-family: var(--font-heading);
+    color: #432800;
+    background: linear-gradient(135deg, #ffe066 0%, #ffb300 100%);
+    padding: 1px 3px;
+    border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    letter-spacing: 0.4px;
+    line-height: 1.1;
+    pointer-events: none;
+    z-index: 4;
+}
+
+/* 융합 공개패(Meld) 및 승리 쇼케이스 내부 도라 타일 */
+.meld-tile.is-dora,
+.win-hand-showcase .mahjong-tile.is-dora {
+    border: 2px solid #ffd700 !important;
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), inset 0 0 6px rgba(255, 235, 100, 0.5) !important;
 }
 
 /* ==========================================================================
@@ -2138,6 +2462,77 @@ body {
         overflow: hidden;
     }
 
+    /* 모바일 왕패 (Dead Wall) 영역 축소 */
+    .dead-wall-zone {
+        max-width: 290px;
+        padding: 3px 6px;
+        gap: 3px;
+        border-radius: 8px;
+    }
+
+    .dead-wall-title {
+        font-size: 0.55rem;
+    }
+
+    .dead-wall-count-badge {
+        font-size: 0.48rem;
+    }
+
+    .dora-indicator-pill {
+        padding: 1px 5px;
+        gap: 3px;
+        border-radius: 10px;
+    }
+
+    .dora-pill-tag {
+        font-size: 0.45rem;
+        padding: 0 3px;
+    }
+
+    .dora-indicator-text,
+    .dora-target-text {
+        font-size: 0.52rem;
+    }
+
+    .dora-han-tag {
+        font-size: 0.45rem;
+    }
+
+    .dead-wall-rack {
+        gap: 3px;
+    }
+
+    .dead-wall-tile {
+        width: 19px;
+        height: 25px;
+    }
+
+    .dead-wall-tile.face-up .dw-corner {
+        font-size: 0.38rem;
+    }
+
+    .dead-wall-tile.face-up .dw-symbol {
+        font-size: 0.85rem;
+        margin-top: -3px;
+    }
+
+    .dead-wall-tile.face-up .dw-name {
+        display: none;
+    }
+
+    .dead-wall-tile.face-up .dw-dora-badge {
+        font-size: 0.35rem;
+        top: -4px;
+        right: -3px;
+    }
+
+    .dora-sparkle-pill {
+        font-size: 0.38rem;
+        top: 1px;
+        right: 1px;
+        padding: 0 2px;
+    }
+
     .river-middle-cross {
         gap: 3px;
         width: 100%;
@@ -2538,6 +2933,29 @@ body {
         max-width: calc(100% - 94px);
         padding: 2px 2px;
         gap: 2px;
+    }
+
+    .dead-wall-zone {
+        max-width: 230px;
+        padding: 2px 4px;
+        gap: 2px;
+    }
+
+    .dead-wall-rack {
+        gap: 2px;
+    }
+
+    .dead-wall-tile {
+        width: 15px;
+        height: 20px;
+    }
+
+    .dead-wall-tile.face-up .dw-symbol {
+        font-size: 0.72rem;
+    }
+
+    .dead-wall-tile.face-up .dw-corner {
+        font-size: 0.32rem;
     }
 
     /* 6열 버림패: 18px x 25px */

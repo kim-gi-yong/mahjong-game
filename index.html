@@ -95,6 +95,26 @@
                         <div class="river-tiles-grid" id="discardsToimen"></div>
                     </div>
 
+                    <!-- [왕패 (Dead Wall 14장) & 도라 표시패 영역] -->
+                    <div class="dead-wall-zone" id="deadWallZone">
+                        <div class="dead-wall-header">
+                            <div class="dead-wall-title-box">
+                                <span class="dead-wall-icon">🀄</span>
+                                <span class="dead-wall-title">王牌 (DEAD WALL)</span>
+                                <span class="dead-wall-count-badge">14장</span>
+                            </div>
+                            <div class="dora-indicator-pill" id="doraIndicatorPill">
+                                <span class="dora-pill-tag">DORA</span>
+                                <span class="dora-indicator-text">표시패 <b class="gold-text" id="doraIndicatorName">-</b></span>
+                                <span class="dora-arrow">➔</span>
+                                <span class="dora-target-text">실제 도라 <b class="gold-glow-text" id="doraTargetName">-</b> <span class="dora-han-tag">+1판</span></span>
+                            </div>
+                        </div>
+                        <div class="dead-wall-rack" id="deadWallRack">
+                            <!-- 14장의 왕패 타일이 7열 x 2단 구조로 렌더링됩니다 -->
+                        </div>
+                    </div>
+
                     <!-- 중앙 십자 코어 라인 (상가 버림패 - 턴 나침반 HUD - 하가 버림패) -->
                     <div class="river-middle-cross">
                         <!-- 2. 상가(Kamicha) 버림패 (좌측) -->
@@ -405,8 +425,14 @@
         </div>
     </div>
 
-    <!-- JavaScript 파일 연결 : 수학적 족보 판별 엔진 및 메인 마작 게임 루프 -->
+    <!-- 게임 효과음 (Audio Elements) -->
+    <audio id="sound-discard" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
+    <audio id="sound-draw" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"></audio>
+    <audio id="sound-win" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3"></audio>
+
+    <!-- JavaScript 파일 연결 : 수학적 족보 판별 엔진, AI 봇 두뇌, 메인 게임 루프 -->
     <script src="js/yaku-engine.js"></script>
+    <script src="js/ai-bot.js"></script>
     <script src="js/mahjong.js"></script>
 </body>
 </html>
