@@ -1914,3 +1914,667 @@ body {
     box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6) !important;
 }
 
+/* ==============================================================================
+   8. 반응형 모바일 레이아웃 (@media screen and (max-width: 768px))
+   - 태블릿 및 모바일 기기(768px 이하)에서 4인 좌석, 중앙 나침반, 손패 완벽 피팅
+   - 우측(하가 / 南家) UI 잘림 및 화면 밖 밀림 현상 방지
+   ============================================================================== */
+@media screen and (max-width: 768px) {
+    /* 1. 전체 뷰포트 & 헤더 최적화 */
+    html, body {
+        overflow-x: hidden;
+        width: 100%;
+    }
+
+    .casino-room {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+
+    .vip-header {
+        padding: 8px 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: space-between;
+    }
+
+    .brand-area {
+        gap: 8px;
+    }
+
+    .vip-badge {
+        font-size: 0.6rem;
+        padding: 2px 6px;
+    }
+
+    .game-title {
+        font-size: 1.15rem;
+        letter-spacing: 1px;
+    }
+
+    .sub-title {
+        display: none; /* 모바일 헤더 공간 절약 */
+    }
+
+    .table-stats {
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .stat-pill {
+        padding: 3px 8px;
+        min-width: 60px;
+        border-radius: 6px;
+    }
+
+    .stat-label {
+        font-size: 0.55rem;
+    }
+
+    .stat-value {
+        font-size: 0.78rem;
+    }
+
+    .sound-toggle-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 0.8rem;
+    }
+
+    /* 2. 메인 작탁 펠트 매트 최적화 */
+    .mahjong-table {
+        margin: 4px 4px 8px 4px;
+        padding: 8px 6px;
+        border-width: 4px;
+        border-radius: 12px;
+        outline-width: 1px;
+        gap: 6px;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .table-center-emblem {
+        transform: translate(-50%, -50%) scale(0.6);
+        opacity: 0.08;
+    }
+
+    /* 3. 상단 대면(Toimen) 봇 좌석 */
+    .seat-top-toimen {
+        gap: 4px;
+    }
+
+    .bot-profile-badge {
+        padding: 3px 8px;
+        gap: 5px;
+        border-radius: 6px;
+    }
+
+    .bot-wind-tag {
+        font-size: 0.65rem;
+        padding: 1px 4px;
+    }
+
+    .bot-name {
+        font-size: 0.72rem;
+    }
+
+    .bot-chips {
+        font-size: 0.68rem;
+    }
+
+    .horizontal-hand .mini-tile-back {
+        width: 12px;
+        height: 17px;
+    }
+
+    /* 4. 중간 행: [상가(北) - 중앙 River 필드 - 하가(南)] 한 화면 완벽 피팅 */
+    .table-middle-row {
+        gap: 4px;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* 좌우 봇 좌석 (상가 & 하가) 컴팩트 축소 */
+    .seat-side-kamicha,
+    .seat-side-shimocha {
+        min-width: 50px;
+        max-width: 58px;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .vertical-badge {
+        padding: 4px 2px;
+        gap: 2px;
+        width: 100%;
+    }
+
+    .vertical-badge .bot-name {
+        font-size: 0.6rem;
+        max-width: 50px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .vertical-badge .bot-chips {
+        font-size: 0.58rem;
+    }
+
+    .vertical-hand .mini-tile-back {
+        width: 18px;
+        height: 12px;
+        margin-bottom: 1px;
+    }
+
+    /* 5. 중앙 버림패 아레나 (십자형 그리드 크기 축소) */
+    .central-rivers-arena {
+        flex: 1;
+        max-width: calc(100% - 116px);
+        padding: 4px 4px;
+        border-radius: 12px;
+        border-width: 1px;
+        gap: 3px;
+        overflow: hidden;
+    }
+
+    .river-middle-cross {
+        gap: 3px;
+        width: 100%;
+    }
+
+    /* 사분면 버림패 박스 */
+    .river-quadrant {
+        padding: 3px 4px;
+        min-height: 48px;
+        border-radius: 6px;
+    }
+
+    .river-label-bar {
+        font-size: 0.55rem;
+        padding-bottom: 1px;
+    }
+
+    .toimen-river,
+    .player-river {
+        max-width: 100%;
+    }
+
+    .kamicha-river,
+    .shimocha-river {
+        max-width: 50%;
+    }
+
+    /* 6열 버림패 타일 축소: 36px -> 22px */
+    .river-tiles-grid {
+        grid-template-columns: repeat(6, 22px);
+        gap: 2px 2px;
+        min-height: 30px;
+    }
+
+    .tile-discarded {
+        width: 22px;
+        height: 30px;
+        padding: 1px 0;
+        border-radius: 2px;
+        box-shadow: 
+            0 1px 0 #ffffff inset,
+            0 1px 0 #7e704f,
+            0 2px 0 var(--tile-back-green),
+            0 2px 3px rgba(0, 0, 0, 0.4);
+    }
+
+    .tile-discarded .d-corner {
+        font-size: 0.35rem;
+        padding-left: 1px;
+    }
+
+    .tile-discarded .d-symbol {
+        font-size: 0.95rem;
+        margin-top: -1px;
+    }
+
+    .tile-discarded .d-name {
+        display: none; /* 모바일 버림패 텍스트 라벨 숨김으로 심볼 시인성 확보 */
+    }
+
+    /* 중앙 턴 나침반 HUD 축소: 110px -> 68px */
+    .compass-core-hud {
+        width: 68px;
+        height: 68px;
+        padding: 3px 2px;
+        border-radius: 8px;
+        border-width: 1.5px;
+    }
+
+    .compass-round-tag {
+        font-size: 0.52rem;
+    }
+
+    .compass-winds-cross {
+        width: 38px;
+        height: 38px;
+    }
+
+    .compass-wind {
+        font-size: 0.48rem;
+        padding: 0 1px;
+    }
+
+    .compass-wind.center-dice {
+        font-size: 0.65rem;
+    }
+
+    .compass-wall-info {
+        font-size: 0.48rem;
+        gap: 2px;
+    }
+
+    /* 6. 플레이어 손패 및 3D 타일 랙 */
+    .player-hand-container {
+        width: 100%;
+        max-width: 100%;
+        gap: 4px;
+    }
+
+    .player-info-bar {
+        padding: 0 4px;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .player-profile {
+        gap: 6px;
+    }
+
+    .seat-badge {
+        font-size: 0.62rem;
+        padding: 1px 5px;
+    }
+
+    .player-name {
+        font-size: 0.78rem;
+    }
+
+    .hand-guide-msg {
+        font-size: 0.68rem;
+        padding: 2px 8px;
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .hand-meta {
+        font-size: 0.68rem;
+    }
+
+    /* 타일 랙 축소 및 완벽 피팅 */
+    .tile-rack {
+        padding: 6px 8px 4px 8px;
+        gap: 6px;
+        border-radius: 10px;
+        border-top-width: 2px;
+        border-bottom-width: 2px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        justify-content: flex-start;
+        max-width: 100%;
+    }
+
+    .tiles-wrapper {
+        gap: 2px;
+        flex-shrink: 0;
+    }
+
+    /* 3D 손패 마작 타일 크기 축소: 52px x 72px -> 31px x 45px */
+    .mahjong-tile {
+        width: 31px;
+        height: 45px;
+        padding: 2px 1px;
+        border-radius: 4px;
+        box-shadow: 
+            0 1px 0 #ffffff inset,
+            0 -2px 0 #c4b693 inset,
+            0 2px 0 #9f8f6b,
+            0 4px 0 var(--tile-back-green),
+            0 6px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .tile-corner-label {
+        font-size: 0.46rem;
+        padding-left: 1px;
+    }
+
+    .tile-symbol {
+        font-size: 1.55rem;
+        margin-top: -2px;
+    }
+
+    .tile-sub-label {
+        font-size: 0.42rem;
+        margin-bottom: 0px;
+    }
+
+    /* 드로우 슬롯 */
+    .draw-slot-wrapper {
+        padding-left: 6px;
+        gap: 2px;
+    }
+
+    .draw-slot-label {
+        font-size: 0.48rem;
+        letter-spacing: 1px;
+    }
+
+    .draw-tile-slot {
+        min-width: 31px;
+        min-height: 45px;
+        border-radius: 4px;
+    }
+
+    /* 울기(MELDS) 영역 */
+    .melds-wrapper {
+        padding-left: 6px;
+        gap: 4px;
+    }
+
+    .melds-label {
+        font-size: 0.48rem;
+    }
+
+    .melds-container {
+        gap: 4px;
+    }
+
+    .meld-set {
+        padding: 2px 4px;
+        gap: 2px;
+        border-radius: 4px;
+    }
+
+    .meld-tile {
+        width: 22px;
+        height: 30px;
+        padding: 1px 0;
+        border-radius: 2px;
+    }
+
+    .meld-tile .m-corner {
+        font-size: 0.35rem;
+    }
+
+    .meld-tile .m-symbol {
+        font-size: 0.95rem;
+    }
+
+    .meld-tile .m-name {
+        display: none;
+    }
+
+    /* 7. 하단 버튼 바 */
+    .control-panel {
+        padding: 4px 0;
+    }
+
+    .action-buttons-group {
+        gap: 6px;
+    }
+
+    .casino-btn {
+        padding: 6px 10px;
+        font-size: 0.72rem;
+        border-radius: 6px;
+        gap: 4px;
+    }
+
+    .btn-icon {
+        font-size: 0.8rem;
+    }
+
+    /* 8. 팝업 & 모달 반응형 */
+    .action-card-popup {
+        max-width: 94vw;
+        padding: 14px 10px;
+    }
+
+    .action-popup-title {
+        font-size: 1.1rem;
+    }
+
+    .target-tile-desc {
+        font-size: 0.8rem;
+    }
+
+    .action-buttons-list {
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .action-pop-btn {
+        padding: 8px 12px;
+        font-size: 0.82rem;
+    }
+
+    .win-modal-content {
+        max-width: 95vw;
+        padding: 12px 8px;
+    }
+
+    .casino-receipt-card {
+        padding: 12px 10px;
+    }
+
+    .win-hand-showcase {
+        gap: 2px;
+        padding: 6px;
+    }
+
+    .win-hand-showcase .mahjong-tile {
+        width: 24px;
+        height: 34px;
+        padding: 1px 0;
+    }
+
+    .win-hand-showcase .mahjong-tile .tile-symbol {
+        font-size: 1.1rem;
+    }
+
+    .win-hand-showcase .mahjong-tile .tile-corner-label {
+        font-size: 0.36rem;
+    }
+
+    .win-hand-showcase .mahjong-tile .tile-sub-label {
+        display: none;
+    }
+
+    .receipt-main-title {
+        font-size: 1.15rem;
+    }
+
+    .grand-total-val {
+        font-size: 1.55rem;
+    }
+
+    .receipt-stamp-seal {
+        width: 48px;
+        height: 48px;
+    }
+
+    .seal-chinese {
+        font-size: 0.78rem;
+    }
+
+    .seal-eng {
+        font-size: 0.45rem;
+    }
+}
+
+/* ==============================================================================
+   9. 초소형 스마트폰 세로모드 최적화 (@media screen and (max-width: 480px))
+   - 가로 360px ~ 430px(아이폰 미니, 갤럭시 등) 완벽 대응
+   ============================================================================== */
+@media screen and (max-width: 480px) {
+    .vip-header {
+        padding: 6px 8px;
+    }
+
+    .game-title {
+        font-size: 0.95rem;
+    }
+
+    .table-stats {
+        gap: 4px;
+    }
+
+    .stat-pill {
+        min-width: 48px;
+        padding: 2px 5px;
+    }
+
+    .stat-value {
+        font-size: 0.7rem;
+    }
+
+    .mahjong-table {
+        margin: 2px;
+        padding: 4px 2px;
+        border-width: 3px;
+        border-radius: 8px;
+    }
+
+    /* 좌우 봇 좌석 추가 축소 */
+    .seat-side-kamicha,
+    .seat-side-shimocha {
+        min-width: 40px;
+        max-width: 46px;
+        gap: 2px;
+    }
+
+    .vertical-badge {
+        padding: 2px 1px;
+    }
+
+    .vertical-badge .bot-name {
+        font-size: 0.52rem;
+        max-width: 40px;
+    }
+
+    .vertical-badge .bot-chips {
+        font-size: 0.5rem;
+    }
+
+    .vertical-hand .mini-tile-back {
+        width: 14px;
+        height: 10px;
+    }
+
+    /* 중앙 River 아레나 */
+    .central-rivers-arena {
+        max-width: calc(100% - 94px);
+        padding: 2px 2px;
+        gap: 2px;
+    }
+
+    /* 6열 버림패: 18px x 25px */
+    .river-tiles-grid {
+        grid-template-columns: repeat(6, 18px);
+        gap: 1px 1px;
+        min-height: 25px;
+    }
+
+    .tile-discarded {
+        width: 18px;
+        height: 25px;
+    }
+
+    .tile-discarded .d-corner {
+        font-size: 0.3rem;
+    }
+
+    .tile-discarded .d-symbol {
+        font-size: 0.8rem;
+    }
+
+    /* 중앙 나침반: 56px */
+    .compass-core-hud {
+        width: 56px;
+        height: 56px;
+        padding: 2px 1px;
+    }
+
+    .compass-winds-cross {
+        width: 30px;
+        height: 30px;
+    }
+
+    .compass-wind {
+        font-size: 0.42rem;
+    }
+
+    .compass-wind.center-dice {
+        font-size: 0.55rem;
+    }
+
+    /* 손패 타일: 22px x 33px (13장 = 286px + 간격 = 300px로 360px 기기에도 완전 피팅) */
+    .mahjong-tile {
+        width: 22px;
+        height: 33px;
+        padding: 1px 0;
+        border-radius: 2.5px;
+        box-shadow: 
+            0 1px 0 #ffffff inset,
+            0 1.5px 0 #9f8f6b,
+            0 2.5px 0 var(--tile-back-green),
+            0 3px 5px rgba(0, 0, 0, 0.4);
+    }
+
+    .tile-corner-label {
+        font-size: 0.34rem;
+        padding-left: 1px;
+        letter-spacing: -0.8px;
+    }
+
+    .tile-symbol {
+        font-size: 1.15rem;
+        margin-top: -2px;
+    }
+
+    .tile-sub-label {
+        display: none; /* 초소형 기기에서 텍스트 라벨 생략하여 심볼 시인성 극대화 */
+    }
+
+    .draw-tile-slot {
+        min-width: 22px;
+        min-height: 33px;
+    }
+
+    .meld-tile {
+        width: 17px;
+        height: 24px;
+    }
+
+    .meld-tile .m-corner {
+        font-size: 0.28rem;
+    }
+
+    .meld-tile .m-symbol {
+        font-size: 0.75rem;
+    }
+
+    .action-buttons-group {
+        gap: 4px;
+    }
+
+    .casino-btn {
+        padding: 5px 7px;
+        font-size: 0.65rem;
+    }
+
+    .btn-icon {
+        font-size: 0.7rem;
+    }
+}
+
+
