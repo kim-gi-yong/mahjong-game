@@ -1,0 +1,1916 @@
+/* ==========================================================================
+   HIGH ROLLER MAHJONG (하이롤러 마작) - VIP 카지노 스타일시트
+   - 펠트(Felt) 테이블 텍스처, 원목 테두리, 골드 액센트
+   - 3D 입체 마작 타일 렌더링 (상아색 앞면 + 옥색 등판 베벨)
+   ========================================================================== */
+
+:root {
+    /* 카지노 펠트 및 테이블 컬러 */
+    --felt-primary: #0a4728;
+    --felt-deep: #062b18;
+    --felt-light: #125e36;
+    --wood-border: #2c1a0e;
+    --wood-border-light: #442a17;
+    
+    /* 골드 & 메탈릭 액센트 */
+    --gold-primary: #d4af37;
+    --gold-light: #f7e28b;
+    --gold-dark: #99751e;
+    --gold-glow: rgba(212, 175, 55, 0.45);
+    
+    /* 마작 타일 색상 */
+    --tile-bg-front: #faf7ed;
+    --tile-bg-front-bottom: #ebe2cf;
+    --tile-bg-side: #d5cbaf;
+    --tile-back-green: #1a4d2e;
+    --tile-border: #c8bc9f;
+    --tile-shadow: rgba(0, 0, 0, 0.45);
+    
+    /* 패 종류별 심볼 컬러 */
+    --color-wan: #b71c1c;       /* 만수패: 붉은색 */
+    --color-pin: #1565c0;       /* 통수패: 푸른색 */
+    --color-sou: #2e7d32;       /* 삭수패: 녹색 */
+    --color-wind: #263238;      /* 풍패: 흑청색 */
+    --color-dragon-red: #c62828;/* 중: 붉은색 */
+    --color-dragon-green: #1b5e20; /* 발: 녹색 */
+    --color-dragon-white: #37474f; /* 백: 백색/회색 */
+
+    /* UI 폰트 */
+    --font-heading: 'Cinzel', serif;
+    --font-body: 'Outfit', 'Noto Sans KR', sans-serif;
+    --font-tile: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Noto Sans Symbols 2", sans-serif;
+}
+
+/* 기본 리셋 & 박스 사이징 */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+}
+
+body {
+    background-color: #03130b;
+    color: #e0e0e0;
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    user-select: none;
+}
+
+/* 럭셔리 골드 텍스트 효과 */
+.gold-text {
+    background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold-primary) 50%, var(--gold-dark) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+}
+
+/* ==========================================================================
+   카지노 룸 & 마작 테이블 레이아웃
+   ========================================================================== */
+.casino-room {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 30%, #0c331e 0%, #04140b 100%);
+    position: relative;
+}
+
+/* VIP 헤더 */
+.vip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 32px;
+    background: rgba(10, 18, 14, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(212, 175, 55, 0.25);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    z-index: 20;
+}
+
+.brand-area {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.vip-badge {
+    background: linear-gradient(135deg, var(--gold-dark), var(--gold-primary));
+    color: #120e03;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    box-shadow: 0 0 10px var(--gold-glow);
+}
+
+.game-title {
+    font-family: var(--font-heading);
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #ffffff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+}
+
+.sub-title {
+    font-size: 0.82rem;
+    color: #a4b3a8;
+    margin-left: 6px;
+    border-left: 1px solid rgba(212, 175, 55, 0.3);
+    padding-left: 14px;
+}
+
+/* 테이블 스탯 영역 */
+.table-stats {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.stat-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 8px;
+    padding: 5px 14px;
+    min-width: 90px;
+}
+
+.stat-label {
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    color: #8c9e92;
+    text-transform: uppercase;
+}
+
+.stat-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #f1f1f1;
+}
+
+.chips-value {
+    color: #64dd17;
+    text-shadow: 0 0 8px rgba(100, 221, 23, 0.3);
+}
+
+.sound-toggle-btn {
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid var(--gold-primary);
+    color: var(--gold-primary);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.sound-toggle-btn:hover {
+    background: var(--gold-primary);
+    color: #120e03;
+    transform: scale(1.05);
+}
+
+/* ==========================================================================
+   메인 마작 테이블 (카지노 펠트)
+   ========================================================================== */
+.mahjong-table {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin: 8px 18px;
+    padding: 12px 18px;
+    border-radius: 20px;
+    background: radial-gradient(circle at center, var(--felt-light) 0%, var(--felt-primary) 50%, var(--felt-deep) 100%);
+    box-shadow: 
+        inset 0 0 80px rgba(0, 0, 0, 0.8),
+        inset 0 0 16px rgba(212, 175, 55, 0.2),
+        0 8px 30px rgba(0, 0, 0, 0.7);
+    border: 8px solid var(--wood-border);
+    outline: 2px solid var(--gold-dark);
+    position: relative;
+    overflow: hidden;
+}
+
+/* 펠트 미세 텍스처 패턴 오버레이 */
+.mahjong-table::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: 
+        radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        radial-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px);
+    background-size: 8px 8px;
+    background-position: 0 0, 4px 4px;
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+/* 중앙 카지노 엠블럼 워터마크 */
+.table-center-emblem {
+    position: absolute;
+    top: 36%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0.15;
+    pointer-events: none;
+    text-align: center;
+}
+
+.emblem-dragon {
+    font-size: 7rem;
+    color: var(--gold-light);
+}
+
+.emblem-text {
+    font-family: var(--font-heading);
+    font-size: 1.4rem;
+    letter-spacing: 4px;
+    color: var(--gold-light);
+    margin-top: -10px;
+}
+
+.emblem-stars {
+    color: var(--gold-primary);
+    letter-spacing: 8px;
+    font-size: 0.9rem;
+    margin-top: 6px;
+}
+
+/* ==========================================================================
+   4인 마작 작탁 - 봇 좌석 (대면/상가/하가) 및 십자형(Cross) 4방위 버림패 UI
+   ========================================================================== */
+
+/* 1. 상단 대면 (Toimen / 西家) 봇 영역 */
+.seat-top-toimen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 8;
+    margin-bottom: 6px;
+}
+
+/* 봇 공통 프로필 뱃지 */
+.bot-profile-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(8, 28, 16, 0.75);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: 20px;
+    padding: 3px 12px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
+}
+
+.bot-wind-tag {
+    background: #1b5e20;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 800;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--gold-primary);
+}
+
+.bot-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #e0e0e0;
+}
+
+.bot-chips {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64dd17;
+}
+
+/* 현재 턴 상태를 알리는 인디케이터 램프 */
+.turn-lamp {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #37474f;
+    transition: all 0.3s ease;
+}
+
+.bot-profile-badge.is-turn {
+    border-color: var(--gold-primary);
+    background: rgba(183, 28, 28, 0.45);
+    box-shadow: 0 0 16px var(--gold-glow);
+}
+
+.bot-profile-badge.is-turn .turn-lamp {
+    background: #ffeb3b;
+    box-shadow: 0 0 8px #ffeb3b, 0 0 14px #ff9800;
+    animation: turnPulse 0.8s infinite alternate;
+}
+
+@keyframes turnPulse {
+    from { opacity: 0.5; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1.3); }
+}
+
+/* 봇들의 미니 뒷면 타일 랙 (타일 뒷면 렌더링) */
+.bot-hand-tiles {
+    display: flex;
+    gap: 3px;
+    opacity: 0.88;
+}
+
+.horizontal-hand {
+    flex-direction: row;
+}
+
+.vertical-hand {
+    flex-direction: column;
+}
+
+/* 미니 뒷면 타일 */
+.mini-tile-back {
+    width: 18px;
+    height: 25px;
+    background: linear-gradient(180deg, #1e6b37 0%, #114221 100%);
+    border: 1px solid #2e8b4e;
+    border-radius: 3px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.vertical-hand .mini-tile-back {
+    width: 25px;
+    height: 18px;
+}
+
+/* 2. 작탁 중간 라인 (상가 - 중앙 4방위 River 십자 코어 - 하가) */
+.table-middle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+    flex: 1;
+    z-index: 6;
+}
+
+/* 좌측 상가 (Kamicha / 北) & 우측 하가 (Shimocha / 南) */
+.seat-side-kamicha,
+.seat-side-shimocha {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 90px;
+}
+
+.vertical-badge {
+    flex-direction: column;
+    padding: 8px 6px;
+    gap: 4px;
+    text-align: center;
+}
+
+/* 3. 중앙 4인 버림패 십자형(Cross) 필드 & 턴 코어 */
+.central-rivers-arena {
+    flex: 1;
+    max-width: 740px;
+    background: radial-gradient(circle at center, rgba(3, 20, 11, 0.82) 0%, rgba(1, 10, 5, 0.92) 100%);
+    border: 2px solid rgba(212, 175, 55, 0.35);
+    border-radius: 20px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 
+        inset 0 0 40px rgba(0, 0, 0, 0.8),
+        0 10px 30px rgba(0, 0, 0, 0.5);
+    position: relative;
+}
+
+.river-middle-cross {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 12px;
+}
+
+/* 각 사분면 River 구역 */
+.river-quadrant {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px dashed rgba(212, 175, 55, 0.2);
+    border-radius: 10px;
+    padding: 6px 10px;
+    min-height: 80px;
+    transition: border-color 0.3s ease;
+}
+
+.river-quadrant.is-current-turn {
+    border-color: var(--gold-primary);
+    background: rgba(212, 175, 55, 0.06);
+}
+
+.toimen-river,
+.player-river {
+    width: 100%;
+    max-width: 380px;
+}
+
+.kamicha-river,
+.shimocha-river {
+    flex: 1;
+    max-width: 240px;
+}
+
+.river-label-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #9cb1a4;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 3px;
+}
+
+.river-owner-name {
+    letter-spacing: 0.5px;
+}
+
+.my-river-tag {
+    color: var(--gold-light);
+}
+
+.river-counter {
+    color: var(--gold-primary);
+}
+
+/* 6열 그리드 버림패 타일 배치 */
+.river-tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 36px);
+    gap: 4px 4px;
+    min-height: 48px;
+    justify-content: center;
+}
+
+/* 4. 중앙 턴 나침반 & 패산 콘솔 HUD */
+.compass-core-hud {
+    width: 110px;
+    height: 110px;
+    background: radial-gradient(circle at center, #2e1a0b 0%, #150a03 100%);
+    border: 2px solid var(--gold-primary);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 4px;
+    box-shadow: 
+        0 0 16px rgba(0, 0, 0, 0.8),
+        0 0 12px var(--gold-glow);
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.compass-round-tag {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--gold-light);
+    letter-spacing: 1px;
+}
+
+/* 4방위 십자 나침반 */
+.compass-winds-cross {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    place-items: center;
+}
+
+.compass-wind {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #6b7c72;
+    transition: all 0.3s ease;
+    border-radius: 3px;
+    padding: 1px 3px;
+}
+
+.compass-wind.north { grid-column: 2; grid-row: 1; }
+.compass-wind.west  { grid-column: 1; grid-row: 2; }
+.compass-wind.center-dice { grid-column: 2; grid-row: 2; font-size: 0.9rem; }
+.compass-wind.east  { grid-column: 2; grid-row: 3; }
+.compass-wind.south { grid-column: 3; grid-row: 2; }
+
+/* 현재 활성화된 턴 방향 */
+.compass-wind.active {
+    color: #ffffff;
+    background: #b71c1c;
+    border: 1px solid #ffd54f;
+    box-shadow: 0 0 10px rgba(255, 213, 79, 0.8);
+    transform: scale(1.2);
+}
+
+.compass-wall-info {
+    display: flex;
+    gap: 4px;
+    font-size: 0.65rem;
+}
+
+.compass-wall-info .wall-label {
+    color: #8c9e92;
+}
+
+/* 5. 3D 미니 버림패 타일 디자인 (4인 뷰에 최적화된 36px x 48px) */
+.tile-discarded {
+    width: 36px;
+    height: 48px;
+    background: linear-gradient(180deg, #f8f4e6 0%, #ede3cb 85%, #d6caa9 100%);
+    border-radius: 4px;
+    border: 1px solid #bfb291;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 1px;
+    position: relative;
+    cursor: default;
+    
+    /* 3D 마작패 입체 턱 및 그림자 */
+    box-shadow: 
+        0 1px 0 #ffffff inset,
+        0 -2px 0 #b3a37e inset,
+        0 2px 0 #7e704f,
+        0 3px 0 var(--tile-back-green),
+        0 4px 6px rgba(0, 0, 0, 0.45);
+    
+    animation: discardTileDrop 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tile-discarded:hover {
+    transform: translateY(-3px) scale(1.08);
+    box-shadow: 
+        0 1px 0 #ffffff inset,
+        0 3px 0 #7e704f,
+        0 4px 0 var(--tile-back-green),
+        0 8px 12px rgba(0, 0, 0, 0.6),
+        0 0 8px var(--gold-glow);
+    z-index: 10;
+}
+
+/* 버림패 내부 코너 라벨 */
+.tile-discarded .d-corner {
+    font-size: 0.52rem;
+    font-weight: 800;
+    line-height: 1;
+    align-self: flex-start;
+    padding-left: 2px;
+}
+
+/* 버림패 중앙 유니코드 심볼 */
+.tile-discarded .d-symbol {
+    font-size: 1.5rem;
+    line-height: 1;
+    margin-top: -3px;
+    font-family: var(--font-tile);
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+
+/* 버림패 하단 한국어 명칭 */
+.tile-discarded .d-name {
+    font-size: 0.5rem;
+    font-weight: 700;
+    color: #4b4436;
+    letter-spacing: -0.5px;
+    line-height: 1;
+    margin-bottom: 1px;
+}
+
+/* 버림패 타입별 컬러 */
+.tile-discarded.type-wan .d-corner,
+.tile-discarded.type-wan .d-symbol { color: var(--color-wan); }
+
+.tile-discarded.type-pin .d-corner,
+.tile-discarded.type-pin .d-symbol { color: var(--color-pin); }
+
+.tile-discarded.type-sou .d-corner,
+.tile-discarded.type-sou .d-symbol { color: var(--color-sou); }
+
+.tile-discarded.type-wind .d-corner,
+.tile-discarded.type-wind .d-symbol { color: var(--color-wind); }
+
+.tile-discarded.tile-dragon-red .d-corner,
+.tile-discarded.tile-dragon-red .d-symbol { color: var(--color-dragon-red); }
+
+.tile-discarded.tile-dragon-green .d-corner,
+.tile-discarded.tile-dragon-green .d-symbol { color: var(--color-dragon-green); }
+
+.tile-discarded.tile-dragon-white .d-corner,
+.tile-discarded.tile-dragon-white .d-symbol { color: var(--color-dragon-white); }
+
+/* 가장 최근에 버려진 패 강조 (하이라이트) */
+.tile-discarded.is-latest {
+    border-color: #ffd54f;
+    box-shadow: 
+        0 1px 0 #ffffff inset,
+        0 0 0 1.5px #ffd54f,
+        0 3px 0 #7e704f,
+        0 4px 0 var(--tile-back-green),
+        0 8px 12px rgba(212, 175, 55, 0.4),
+        0 0 12px rgba(255, 213, 79, 0.6);
+}
+
+.tile-discarded.is-latest::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ff5252;
+    box-shadow: 0 0 6px #ff1744;
+}
+
+/* 패가 버려질 때 위에서 통통 튀며 착지하는 3D 드롭 애니메이션 */
+@keyframes discardTileDrop {
+    0% {
+        transform: translateY(-24px) scale(1.15) rotate(3deg);
+        opacity: 0.2;
+    }
+    60% {
+        transform: translateY(2px) scale(0.98) rotate(-1deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(0) scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+/* 14장 상태일 때 손패 타일 클릭 유도 스타일 */
+.player-hand-container.can-discard .mahjong-tile:hover {
+    cursor: pointer;
+    border-color: #ffd54f;
+}
+
+/* ==========================================================================
+   플레이어 핸드 컨테이너 & 3D 마작 타일 랙
+   ========================================================================== */
+.player-hand-container {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10;
+}
+
+.player-info-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 8px;
+}
+
+.player-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.seat-badge {
+    background: #b71c1c;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--gold-primary);
+}
+
+.player-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #ffffff;
+}
+
+.hand-guide-msg {
+    font-size: 0.82rem;
+    color: var(--gold-light);
+    background: rgba(0, 0, 0, 0.35);
+    padding: 3px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.hand-meta {
+    font-size: 0.8rem;
+    color: #a0b5a6;
+}
+
+/* 3D 원목 타일 랙 (Tile Rack) */
+.tile-rack {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    background: linear-gradient(180deg, #3d2314 0%, #1a0e07 100%);
+    padding: 12px 18px 8px 18px;
+    border-radius: 14px;
+    border-top: 3px solid #6b4024;
+    border-bottom: 3px solid #140a04;
+    box-shadow: 
+        0 8px 24px rgba(0, 0, 0, 0.7),
+        inset 0 2px 4px rgba(255, 255, 255, 0.15);
+    position: relative;
+    perspective: 800px;
+}
+
+/* 랙 바닥면 받침 목재 턱 */
+.tile-rack::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 20px;
+    right: 20px;
+    height: 6px;
+    background: #24140a;
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* 13장 기본 손패 래퍼 */
+.tiles-wrapper {
+    display: flex;
+    gap: 3px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+/* 쯔모(Draw) 1장 슬롯 래퍼 */
+.draw-slot-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding-left: 12px;
+    border-left: 2px dashed rgba(212, 175, 55, 0.35);
+}
+
+.draw-slot-label {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: var(--gold-light);
+}
+
+.draw-tile-slot {
+    min-width: 52px;
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed rgba(212, 175, 55, 0.3);
+    border-radius: 7px;
+    background: rgba(0, 0, 0, 0.25);
+    transition: all 0.3s ease;
+}
+
+/* ==========================================================================
+   3D 마작 타일 (Mahjong Tile) 디자인
+   ========================================================================== */
+.mahjong-tile {
+    width: 52px;
+    height: 72px;
+    border-radius: 6px;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 2px;
+    background: linear-gradient(180deg, var(--tile-bg-front) 0%, var(--tile-bg-front-bottom) 85%, var(--tile-bg-side) 100%);
+    
+    /* 3D 마작 타일 입체 효과 (측면 턱 + 그림자) */
+    box-shadow: 
+        0 1px 0 #ffffff inset,
+        0 -3px 0 #c4b693 inset,
+        0 4px 0 #9f8f6b,
+        0 6px 0 var(--tile-back-green), /* 하단 녹색 등판 3D 레이어 */
+        0 10px 14px rgba(0, 0, 0, 0.55);
+    border: 1px solid var(--tile-border);
+    transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2), box-shadow 0.2s ease;
+    flex-shrink: 0;
+    will-change: transform;
+}
+
+/* 타일 상단: 타입/수치 미니 텍스트 라벨 (1萬, 5筒 등) */
+.tile-corner-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1;
+    align-self: flex-start;
+    padding-left: 3px;
+    letter-spacing: -0.5px;
+}
+
+/* 타일 중앙: 큼직한 유니코드 마작 문자 */
+.tile-symbol {
+    font-size: 2.5rem;
+    line-height: 1;
+    margin-top: -4px;
+    font-family: var(--font-tile);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+}
+
+/* 타일 하단: 한국어 명칭 보조 라벨 (1만, 7통, 발 등) */
+.tile-sub-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #4b4436;
+    letter-spacing: -0.3px;
+    margin-bottom: 2px;
+}
+
+/* 타입별 색상 적용 */
+.mahjong-tile.type-wan .tile-corner-label { color: var(--color-wan); }
+.mahjong-tile.type-wan .tile-symbol { color: var(--color-wan); }
+
+.mahjong-tile.type-pin .tile-corner-label { color: var(--color-pin); }
+.mahjong-tile.type-pin .tile-symbol { color: var(--color-pin); }
+
+.mahjong-tile.type-sou .tile-corner-label { color: var(--color-sou); }
+.mahjong-tile.type-sou .tile-symbol { color: var(--color-sou); }
+
+.mahjong-tile.type-wind .tile-corner-label { color: var(--color-wind); }
+.mahjong-tile.type-wind .tile-symbol { color: var(--color-wind); }
+
+.mahjong-tile.tile-dragon-red .tile-corner-label,
+.mahjong-tile.tile-dragon-red .tile-symbol { color: var(--color-dragon-red); }
+
+.mahjong-tile.tile-dragon-green .tile-corner-label,
+.mahjong-tile.tile-dragon-green .tile-symbol { color: var(--color-dragon-green); }
+
+.mahjong-tile.tile-dragon-white .tile-corner-label,
+.mahjong-tile.tile-dragon-white .tile-symbol { color: var(--color-dragon-white); }
+
+/* 타일 호버 애니메이션: 위로 10px 부드럽게 팝업 */
+.mahjong-tile:hover {
+    transform: translateY(-10px) scale(1.04);
+    box-shadow: 
+        0 1px 0 #ffffff inset,
+        0 -3px 0 #c4b693 inset,
+        0 8px 0 #9f8f6b,
+        0 11px 0 var(--tile-back-green),
+        0 18px 24px rgba(0, 0, 0, 0.6),
+        0 0 14px var(--gold-glow);
+    z-index: 15;
+}
+
+/* 타일 선택 상태 (Active / Selected) */
+.mahjong-tile.is-selected {
+    transform: translateY(-16px) scale(1.06);
+    border-color: var(--gold-primary);
+    box-shadow: 
+        0 1px 0 #ffffff inset,
+        0 0 0 2px var(--gold-primary),
+        0 12px 0 #9f8f6b,
+        0 16px 0 var(--tile-back-green),
+        0 24px 30px rgba(0, 0, 0, 0.7),
+        0 0 20px rgba(212, 175, 55, 0.8);
+    z-index: 20;
+}
+
+/* 새로 드로우된 패 애니메이션 (반짝임) */
+.mahjong-tile.is-new-draw {
+    animation: drawBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes drawBounce {
+    0% { transform: translateY(-30px) scale(0.85); opacity: 0.3; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ==========================================================================
+   하단 컨트롤 바 (Action Buttons)
+   ========================================================================== */
+.control-panel {
+    display: flex;
+    justify-content: center;
+    padding: 12px 0 0 0;
+    z-index: 10;
+}
+
+.action-buttons-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.casino-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    letter-spacing: 0.3px;
+}
+
+.casino-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.btn-icon {
+    font-size: 1.15rem;
+}
+
+/* 주요 버튼: 골드 그라디언트 */
+.btn-primary {
+    background: linear-gradient(135deg, #f7e28b 0%, #d4af37 50%, #aa8223 100%);
+    color: #1a1202;
+    border: 1px solid #ffd54f;
+    box-shadow: 0 4px 16px rgba(212, 175, 55, 0.35);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #fff3b0 0%, #e0bd49 50%, #c4992e 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.55);
+}
+
+/* 보조 버튼: 딥 에메랄드 */
+.btn-secondary {
+    background: linear-gradient(135deg, #1f6e3c 0%, #134e29 100%);
+    color: #e8f5e9;
+    border: 1px solid rgba(100, 221, 23, 0.3);
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, #288c4d 0%, #196434 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(27, 94, 32, 0.5);
+}
+
+/* 액센트 버튼: 딥 루비 레드 */
+.btn-accent {
+    background: linear-gradient(135deg, #b71c1c 0%, #7f0000 100%);
+    color: #ffffff;
+    border: 1px solid rgba(255, 138, 128, 0.4);
+}
+
+.btn-accent:hover {
+    background: linear-gradient(135deg, #d32f2f 0%, #9a0007 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(183, 28, 28, 0.5);
+}
+
+/* 아웃라인 버튼: 덱 검사용 */
+.btn-outline {
+    background: rgba(0, 0, 0, 0.45);
+    color: #cfd8dc;
+    border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+.btn-outline:hover {
+    background: rgba(212, 175, 55, 0.15);
+    color: var(--gold-light);
+    border-color: var(--gold-primary);
+    transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   136장 전체 덱 검사 모달 창
+   ========================================================================== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: opacity 0.25s ease;
+}
+
+.modal-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-content {
+    background: radial-gradient(circle at 50% 10%, #0d3820 0%, #051a0e 100%);
+    border: 2px solid var(--gold-primary);
+    border-radius: 20px;
+    width: 92%;
+    max-width: 960px;
+    max-height: 85vh;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 30px var(--gold-glow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalIn 0.3s ease-out;
+}
+
+@keyframes modalIn {
+    from { transform: scale(0.92) translateY(20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 26px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.modal-header h2 {
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    color: var(--gold-light);
+}
+
+.modal-desc {
+    font-size: 0.8rem;
+    color: #9cb1a4;
+    margin-top: 2px;
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 1.8rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.modal-close-btn:hover {
+    color: var(--gold-primary);
+}
+
+.modal-body {
+    padding: 20px 26px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.modal-deck-category {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px 18px;
+}
+
+.category-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--gold-primary);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.category-tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+    gap: 8px;
+}
+
+/* 모달 내 미니 타일 */
+.modal-tile {
+    width: 46px;
+    height: 64px;
+    border-radius: 6px;
+    background: #faf6ea;
+    border: 1px solid #d4c8af;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 2px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+.modal-tile .m-symbol {
+    font-size: 1.8rem;
+    line-height: 1;
+    font-family: var(--font-tile);
+}
+
+.modal-tile .m-name {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #333;
+}
+
+/* ==========================================================================
+   화면 중앙 치/펑/깡/론/쯔모 인터랙션 오버레이 모달
+   ========================================================================== */
+.action-overlay-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 95;
+    animation: fadeInOverlay 0.2s ease-out;
+}
+
+.action-overlay-modal.hidden {
+    display: none !important;
+}
+
+@keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.action-card-popup {
+    background: radial-gradient(circle at center, #1c3d28 0%, #081a0f 100%);
+    border: 2px solid var(--gold-primary);
+    border-radius: 20px;
+    padding: 22px 30px;
+    box-shadow: 
+        0 16px 40px rgba(0, 0, 0, 0.9),
+        0 0 35px var(--gold-glow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    animation: actionCenterPop 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    max-width: 620px;
+    width: 90%;
+}
+
+@keyframes actionCenterPop {
+    0% { transform: scale(0.85) translateY(20px); opacity: 0; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.action-card-badge {
+    background: linear-gradient(135deg, var(--gold-dark), var(--gold-primary));
+    color: #120e03;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 2px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    box-shadow: 0 0 10px var(--gold-glow);
+}
+
+.action-popup-title {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    letter-spacing: 1.5px;
+    margin-top: -4px;
+}
+
+/* 울기/화료 대상 패 프리뷰 카드 */
+.target-tile-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 12px;
+    padding: 12px 20px;
+    width: 100%;
+}
+
+.target-tile-desc {
+    color: #e0e0e0;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.target-tile-wrapper {
+    display: flex;
+    justify-content: center;
+}
+
+.action-buttons-list {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+/* 울기 시연 세팅 버튼 스타일 */
+.btn-test-meld {
+    background: linear-gradient(135deg, #4a148c 0%, #311b92 100%);
+    color: #f3e5f5;
+    border: 1px solid rgba(186, 104, 200, 0.5);
+}
+
+.btn-test-meld:hover {
+    background: linear-gradient(135deg, #6a1b9a 0%, #4527a0 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(123, 31, 162, 0.5);
+    transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   반응형 미디어 쿼리 (모바일 & 태블릿)
+   ========================================================================== */
+@media (max-width: 900px) {
+    .vip-header {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 18px;
+    }
+
+    .mahjong-table {
+        margin: 10px;
+        padding: 16px;
+        border-width: 8px;
+    }
+
+    .mahjong-tile {
+        width: 44px;
+        height: 64px;
+    }
+
+    .tile-symbol {
+        font-size: 1.9rem;
+    }
+
+    .tile-corner-label {
+        font-size: 0.62rem;
+    }
+
+    .tile-sub-label {
+        font-size: 0.55rem;
+    }
+
+    .center-hud {
+        flex-direction: column;
+        gap: 12px;
+    }
+}
+
+/* 치 (Chi) 버튼 - 앰버 오렌지 */
+.btn-chi {
+    background: linear-gradient(135deg, #ff9800 0%, #e65100 100%);
+    color: #fff;
+    border: 1px solid #ffb74d;
+}
+
+.btn-chi:hover {
+    box-shadow: 0 6px 16px rgba(255, 152, 0, 0.6);
+}
+
+/* 펑 (Pon) 버튼 - 로열 블루 */
+.btn-pon {
+    background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
+    color: #fff;
+    border: 1px solid #64b5f6;
+}
+
+.btn-pon:hover {
+    box-shadow: 0 6px 16px rgba(25, 118, 210, 0.6);
+}
+
+/* 깡 (Kan) 버튼 - 딥 퍼플 */
+.btn-kan {
+    background: linear-gradient(135deg, #7b1fa2 0%, #4a148c 100%);
+    color: #fff;
+    border: 1px solid #ba68c8;
+}
+
+.btn-kan:hover {
+    box-shadow: 0 6px 16px rgba(123, 31, 162, 0.6);
+}
+
+/* 론 (Ron) 화료 버튼 - 강렬한 크림슨 레드/골드 */
+.btn-ron {
+    background: linear-gradient(135deg, #d32f2f 0%, #880e4f 100%);
+    color: #fff;
+    border: 2px solid var(--gold-light);
+    box-shadow: 0 0 16px rgba(255, 23, 68, 0.8);
+    animation: ronPulse 0.9s infinite alternate;
+}
+
+@keyframes ronPulse {
+    from { transform: scale(1); box-shadow: 0 0 12px rgba(255, 23, 68, 0.6); }
+    to { transform: scale(1.08); box-shadow: 0 0 24px rgba(255, 215, 0, 0.9); }
+}
+
+/* 쯔모 (Tsumo) 버튼 - 골든 앰버 */
+.btn-tsumo {
+    background: linear-gradient(135deg, #ffb300 0%, #ff6f00 100%);
+    color: #120d02;
+    border: 2px solid #fff;
+    box-shadow: 0 0 16px rgba(255, 179, 0, 0.8);
+    animation: ronPulse 0.9s infinite alternate;
+}
+
+/* 스킵 (Skip) 버튼 - 다크 */
+.btn-skip {
+    background: rgba(0, 0, 0, 0.5);
+    color: #b0bec5;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-skip:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+/* ==========================================================================
+   공개패 (Melds / 울기: 치, 펑, 깡) 세트 영역
+   ========================================================================== */
+.melds-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding-left: 14px;
+    border-left: 2px dashed rgba(212, 175, 55, 0.4);
+    min-width: 60px;
+}
+
+.melds-label {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--gold-light);
+}
+
+.melds-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* 단일 울기 묶음 (치 3장, 펑 3장, 깡 4장) */
+.meld-set {
+    display: flex;
+    gap: 2px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: 6px;
+    padding: 3px;
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+/* 공개패 미니 타일 (약 40px x 56px) */
+.meld-tile {
+    width: 40px;
+    height: 56px;
+    border-radius: 4px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 1px;
+    background: linear-gradient(180deg, #faf7ed 0%, #ebe2cf 85%, #d5cbaf 100%);
+    box-shadow: 
+        0 1px 0 #ffffff inset,
+        0 -2px 0 #c4b693 inset,
+        0 2px 0 #9f8f6b,
+        0 3px 0 var(--tile-back-green),
+        0 4px 6px rgba(0, 0, 0, 0.4);
+    border: 1px solid #bfb291;
+}
+
+.meld-tile .m-corner {
+    font-size: 0.55rem;
+    font-weight: 800;
+    line-height: 1;
+    align-self: flex-start;
+    padding-left: 2px;
+}
+
+.meld-tile .m-symbol {
+    font-size: 1.7rem;
+    line-height: 1;
+    margin-top: -3px;
+    font-family: var(--font-tile);
+}
+
+.meld-tile .m-name {
+    font-size: 0.52rem;
+    font-weight: 700;
+    color: #4b4436;
+    line-height: 1;
+    margin-bottom: 1px;
+}
+
+/* 상대방에게서 가져온 타패 강조 (가로 눕힘 또는 골드 하이라이트) */
+.meld-tile.claimed-tile {
+    border-color: #ffd54f;
+    background: linear-gradient(180deg, #fffde7 0%, #fff9c4 85%, #d5cbaf 100%);
+}
+
+.meld-tile.claimed-tile::before {
+    content: '鳴';
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    font-size: 0.5rem;
+    font-weight: 800;
+    color: #d32f2f;
+}
+
+/* 타입별 색상 매핑 */
+.meld-tile.type-wan .m-corner, .meld-tile.type-wan .m-symbol { color: var(--color-wan); }
+.meld-tile.type-pin .m-corner, .meld-tile.type-pin .m-symbol { color: var(--color-pin); }
+.meld-tile.type-sou .m-corner, .meld-tile.type-sou .m-symbol { color: var(--color-sou); }
+.meld-tile.type-wind .m-corner, .meld-tile.type-wind .m-symbol { color: var(--color-wind); }
+.meld-tile.tile-dragon-red .m-corner, .meld-tile.tile-dragon-red .m-symbol { color: var(--color-dragon-red); }
+.meld-tile.tile-dragon-green .m-corner, .meld-tile.tile-dragon-green .m-symbol { color: var(--color-dragon-green); }
+.meld-tile.tile-dragon-white .m-corner, .meld-tile.tile-dragon-white .m-symbol { color: var(--color-dragon-white); }
+
+/* ==========================================================================
+   승리(론/쯔모 화료) 축하 모달 디자인
+   ========================================================================== */
+.win-modal-content {
+    max-width: 680px;
+    text-align: center;
+}
+
+.win-modal-header {
+    flex-direction: column;
+    padding: 24px 20px 14px 20px;
+}
+
+.win-crown-icon {
+    font-size: 3rem;
+    filter: drop-shadow(0 0 14px gold);
+    animation: crownFloat 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes crownFloat {
+    from { transform: translateY(0); }
+    to { transform: translateY(-8px); }
+}
+
+/* ==============================================================================
+   7. 승리 축하 및 카지노 정산 영수증 (WINNING RECEIPT) 모달
+   ============================================================================== */
+.win-modal-content {
+    max-width: 680px;
+    width: 95%;
+    background: rgba(4, 16, 9, 0.97);
+    border: 1.5px solid var(--gold-primary);
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.95), 0 0 50px rgba(212, 175, 55, 0.3);
+    padding: 24px 20px 20px 20px;
+    position: relative;
+    border-radius: 14px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* 리얼 카지노 정산 영수증 카드 */
+.casino-receipt-card {
+    background: #07190f;
+    border: 1.5px solid rgba(212, 175, 55, 0.5);
+    border-radius: 8px;
+    padding: 16px 22px;
+    position: relative;
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.75), 0 10px 30px rgba(0, 0, 0, 0.6);
+    animation: receiptPrintSlide 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes receiptPrintSlide {
+    0% {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.92);
+        filter: blur(4px);
+    }
+    70% {
+        opacity: 1;
+        transform: translateY(8px) scale(1.02);
+        filter: blur(0);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 상하단 톱니바퀴 지그재그 엣지 */
+.receipt-zigzag-edge {
+    height: 10px;
+    width: 100%;
+    background-image: linear-gradient(135deg, transparent 50%, #07190f 50%), linear-gradient(225deg, transparent 50%, #07190f 50%);
+    background-size: 14px 10px;
+    background-repeat: repeat-x;
+    margin: -10px 0 10px 0;
+}
+
+.receipt-zigzag-edge.bottom {
+    transform: rotate(180deg);
+    margin: 14px 0 -10px 0;
+}
+
+/* 영수증 헤더 */
+.receipt-header-box {
+    text-align: center;
+    padding-bottom: 6px;
+}
+
+.receipt-vip-badge {
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    color: #8c9e92;
+    margin-bottom: 2px;
+}
+
+.receipt-main-title {
+    font-size: 1.45rem;
+    letter-spacing: 2px;
+    margin: 4px 0;
+    text-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+}
+
+.receipt-meta-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: #7a8d80;
+    font-family: monospace;
+    margin-top: 6px;
+}
+
+/* 구분선 */
+.receipt-divider-dashed {
+    border-bottom: 1px dashed rgba(212, 175, 55, 0.35);
+    margin: 10px 0;
+}
+
+.receipt-divider-solid {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    margin: 10px 0;
+}
+
+.receipt-divider-double {
+    border-bottom: 3px double var(--gold-primary);
+    margin: 12px 0;
+}
+
+/* 승리자 정보 */
+.receipt-winner-box {
+    margin: 4px 0;
+}
+
+.receipt-winner-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.winner-title {
+    font-size: 0.78rem;
+    letter-spacing: 2px;
+    color: #8c9e92;
+    font-family: var(--font-heading);
+}
+
+.winner-name {
+    font-size: 1.12rem;
+    font-weight: 700;
+}
+
+.receipt-win-type-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(212, 175, 55, 0.15);
+    border: 1px solid var(--gold-primary);
+    border-radius: 6px;
+    padding: 3px 10px;
+    margin: 6px 0 4px 0;
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: #ffd700;
+}
+
+.receipt-target-line {
+    font-size: 0.84rem;
+    color: #a4b3a8;
+}
+
+/* 14장 패 쇼케이스 */
+.receipt-tiles-section {
+    margin: 8px 0;
+}
+
+.section-micro-label {
+    font-size: 0.68rem;
+    letter-spacing: 1.5px;
+    color: #8c9e92;
+    margin-bottom: 6px;
+    text-align: left;
+    font-family: var(--font-heading);
+}
+
+.win-hand-showcase {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+/* 화료 결정타 패 강조 (Agari Tile) */
+.win-hand-showcase .mahjong-tile.is-winning-agari {
+    transform: translateY(-5px) scale(1.05);
+    border: 2px solid #ffd700 !important;
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.85), 0 8px 16px rgba(0, 0, 0, 0.7) !important;
+    position: relative;
+    z-index: 2;
+}
+
+.win-hand-showcase .mahjong-tile.is-winning-agari::after {
+    content: '和';
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #d32f2f;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 900;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ffd700;
+    box-shadow: 0 0 8px rgba(211, 47, 47, 0.9);
+}
+
+/* 성립된 족보(역) 테이블 */
+.receipt-yaku-section {
+    margin: 6px 0;
+}
+
+.yaku-table-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    letter-spacing: 1.5px;
+    color: #8c9e92;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+    font-family: var(--font-heading);
+}
+
+.receipt-yaku-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.receipt-yaku-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.88rem;
+    padding: 3px 0;
+}
+
+.yaku-name-col {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.yaku-hanzi-badge {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(212, 175, 55, 0.15);
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    color: var(--gold-light);
+}
+
+.yaku-korean-name {
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.yaku-han-col {
+    font-weight: 700;
+    color: var(--gold-light);
+    font-family: var(--font-heading);
+    letter-spacing: 0.5px;
+}
+
+/* 판수/부수 및 리밋 뱃지 */
+.receipt-han-fu-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+.receipt-limit-badge {
+    text-align: center;
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: #ffd700;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, rgba(212, 175, 55, 0) 0%, rgba(212, 175, 55, 0.28) 50%, rgba(212, 175, 55, 0) 100%);
+    padding: 5px 0;
+    margin: 6px 0;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    border-radius: 4px;
+}
+
+/* 지불 분담 명세 */
+.receipt-payment-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.84rem;
+    color: #a4b3a8;
+}
+
+.receipt-payment-breakdown .payment-row {
+    display: flex;
+    justify-content: space-between;
+}
+
+/* 총 획득 칩 */
+.receipt-grand-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+}
+
+.total-title-box {
+    text-align: left;
+}
+
+.grand-total-label {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    letter-spacing: 2px;
+    color: #8c9e92;
+    display: block;
+}
+
+.total-currency {
+    font-size: 0.65rem;
+    color: #64dd17;
+    letter-spacing: 1px;
+}
+
+.grand-total-val {
+    font-size: 2.1rem;
+    font-weight: 900;
+    font-family: var(--font-heading);
+    color: #64dd17;
+    text-shadow: 0 0 16px rgba(100, 221, 23, 0.6);
+    letter-spacing: 1px;
+}
+
+/* 하단 바코드 & 공식 인장 */
+.receipt-footer-box {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding: 4px 0;
+}
+
+.receipt-barcode {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.barcode-lines {
+    height: 30px;
+    width: 170px;
+    background: repeating-linear-gradient(90deg, #8c9e92 0, #8c9e92 2px, transparent 2px, transparent 5px, #8c9e92 5px, #8c9e92 8px, transparent 8px, transparent 10px, #8c9e92 10px, #8c9e92 13px, transparent 13px, transparent 14px);
+}
+
+.barcode-digits {
+    font-family: monospace;
+    font-size: 0.65rem;
+    color: #7a8d80;
+    letter-spacing: 2px;
+}
+
+.receipt-stamp-seal {
+    width: 64px;
+    height: 64px;
+    border: 2px dashed #ff3b30;
+    color: #ff3b30;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(-14deg);
+    font-weight: 900;
+    font-family: var(--font-heading);
+    box-shadow: 0 0 12px rgba(255, 59, 48, 0.35);
+    opacity: 0.92;
+    background: rgba(255, 59, 48, 0.04);
+}
+
+.seal-chinese {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.seal-eng {
+    font-size: 0.58rem;
+    letter-spacing: 1px;
+}
+
+.receipt-slogan {
+    text-align: center;
+    font-size: 0.62rem;
+    letter-spacing: 1.5px;
+    color: #5a6e60;
+    margin-top: 10px;
+    font-family: var(--font-heading);
+}
+
+.win-modal-footer {
+    padding: 16px 20px 8px 20px;
+    display: flex;
+    justify-content: center;
+}
+
+/* 쯔모 시연 버튼 스타일링 */
+.btn-test-tsumo {
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 50%, #b8860b 100%) !important;
+    color: #041007 !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4) !important;
+}
+
+.btn-test-tsumo:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6) !important;
+}
+

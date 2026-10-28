@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>하이롤러 마작 | High Roller Mahjong VIP Lounge</title>
+    <meta name="description" content="상용화 수준의 럭셔리 카지노풍 4인 마작 게임 - Phase 1: 136장 패산 생성, 셔플 및 13장 배패 시스템">
+    
+    <!-- Google Fonts: 럭셔리 카지노 감성의 Cinzel, 현대적인 Outfit, 한국어 지원 Noto Sans KR -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CSS 스타일시트 -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 카지노 펠트 테이블 최외곽 컨테이너 -->
+    <div class="casino-room" id="casinoRoom">
+        
+        <!-- 상단 VIP 네비게이션 헤더 -->
+        <header class="vip-header">
+            <div class="brand-area">
+                <div class="vip-badge">VIP LOUNGE</div>
+                <h1 class="game-title">HIGH ROLLER <span class="gold-text">MAHJONG</span></h1>
+                <span class="sub-title">ハイローラー麻雀 · 카지노풍 정통 4인 마작</span>
+            </div>
+
+            <div class="table-stats">
+                <div class="stat-pill">
+                    <span class="stat-label">ROUND</span>
+                    <span class="stat-value gold-text" id="roundDisplay">東 1局 (동1국)</span>
+                </div>
+                <div class="stat-pill">
+                    <span class="stat-label">REMAINING TILES</span>
+                    <span class="stat-value" id="deckCountDisplay">136 / 136</span>
+                </div>
+                <div class="stat-pill score-pill">
+                    <span class="stat-label">MY CHIPS</span>
+                    <span class="stat-value chips-value" id="playerChips">25,000 pts</span>
+                </div>
+                <button class="sound-toggle-btn" id="soundToggleBtn" title="효과음 켜기/끄기">
+                    <span class="sound-icon" id="soundIcon">🔊</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 메인 카지노 마작 테이블 (그린 펠트) -->
+        <main class="mahjong-table" id="mahjongTable">
+            <!-- 테이블 펠트 내부 워터마크 엠블럼 -->
+            <div class="table-center-emblem">
+                <div class="emblem-inner">
+                    <div class="emblem-dragon">🀄</div>
+                    <div class="emblem-text">HIGH ROLLER CLUB</div>
+                    <div class="emblem-stars">★ ★ ★ ★ ★</div>
+                </div>
+            </div>
+
+            <!-- [대면 / Toimen (西)] 상단 AI 봇 영역 -->
+            <div class="seat-top-toimen bot-seat" id="seatToimen">
+                <div class="bot-profile-badge">
+                    <span class="bot-wind-tag">西</span>
+                    <span class="bot-name">대면 (VIP Bot 2)</span>
+                    <span class="bot-chips">25,000</span>
+                    <span class="turn-lamp" id="lampToimen"></span>
+                </div>
+                <div class="bot-hand-tiles horizontal-hand" id="botHandToimen">
+                    <!-- 대면의 뒷면 패 13장 표시 -->
+                </div>
+            </div>
+
+            <!-- 작탁 중간 라인 : [상가 (北)] - [중앙 4방위 버림패 십자 코어] - [하가 (南)] -->
+            <div class="table-middle-row">
+                <!-- [상가 / Kamicha (北)] 좌측 AI 봇 영역 -->
+                <div class="seat-side-kamicha bot-seat" id="seatKamicha">
+                    <div class="bot-profile-badge vertical-badge">
+                        <span class="bot-wind-tag">北</span>
+                        <span class="bot-name">상가 (VIP Bot 3)</span>
+                        <span class="bot-chips">25,000</span>
+                        <span class="turn-lamp" id="lampKamicha"></span>
+                    </div>
+                    <div class="bot-hand-tiles vertical-hand" id="botHandKamicha">
+                        <!-- 상가의 세로형 뒷면 패 13장 표시 -->
+                    </div>
+                </div>
+
+                <!-- [중앙 4인 버림패 십자형(Cross) 필드 & 턴 코어 HUD] -->
+                <section class="central-rivers-arena" id="centralRiversArena" aria-label="4인 버림패 구역">
+                    <!-- 1. 대면(Toimen) 버림패 (상단) -->
+                    <div class="river-quadrant toimen-river">
+                        <div class="river-label-bar">
+                            <span class="river-owner-name">대면 (西家) 버림패</span>
+                            <span class="river-counter" id="countToimen">0장</span>
+                        </div>
+                        <div class="river-tiles-grid" id="discardsToimen"></div>
+                    </div>
+
+                    <!-- 중앙 십자 코어 라인 (상가 버림패 - 턴 나침반 HUD - 하가 버림패) -->
+                    <div class="river-middle-cross">
+                        <!-- 2. 상가(Kamicha) 버림패 (좌측) -->
+                        <div class="river-quadrant kamicha-river">
+                            <div class="river-label-bar">
+                                <span class="river-owner-name">상가 (北家) 버림패</span>
+                                <span class="river-counter" id="countKamicha">0장</span>
+                            </div>
+                            <div class="river-tiles-grid" id="discardsKamicha"></div>
+                        </div>
+
+                        <!-- 중앙 턴 나침반 & 패산 콘솔 HUD -->
+                        <div class="compass-core-hud" id="compassCoreHud">
+                            <div class="compass-round-tag" id="compassRoundTag">東 1局</div>
+                            <div class="compass-winds-cross">
+                                <div class="compass-wind north" id="compassNorth">北</div>
+                                <div class="compass-wind west" id="compassWest">西</div>
+                                <div class="compass-wind center-dice" id="compassCenterDice">🎲</div>
+                                <div class="compass-wind east active" id="compassEast">東</div>
+                                <div class="compass-wind south" id="compassSouth">南</div>
+                            </div>
+                            <div class="compass-wall-info">
+                                <span class="wall-label">패산</span>
+                                <span class="wall-value gold-text" id="wallCount">83장</span>
+                            </div>
+                        </div>
+
+                        <!-- 3. 하가(Shimocha) 버림패 (우측) -->
+                        <div class="river-quadrant shimocha-river">
+                            <div class="river-label-bar">
+                                <span class="river-owner-name">하가 (南家) 버림패</span>
+                                <span class="river-counter" id="countShimocha">0장</span>
+                            </div>
+                            <div class="river-tiles-grid" id="discardsShimocha"></div>
+                        </div>
+                    </div>
+
+                    <!-- 4. 나(Player / 동가) 버림패 (하단) -->
+                    <div class="river-quadrant player-river">
+                        <div class="river-label-bar">
+                            <span class="river-owner-name my-river-tag">나 (東家) 버림패</span>
+                            <span class="river-counter" id="countPlayer">0장</span>
+                        </div>
+                        <div class="river-tiles-grid" id="discardsPlayer"></div>
+                    </div>
+                </section>
+
+                <!-- [하가 / Shimocha (南)] 우측 AI 봇 영역 -->
+                <div class="seat-side-shimocha bot-seat" id="seatShimocha">
+                    <div class="bot-profile-badge vertical-badge">
+                        <span class="bot-wind-tag">南</span>
+                        <span class="bot-name">하가 (VIP Bot 1)</span>
+                        <span class="bot-chips">25,000</span>
+                        <span class="turn-lamp" id="lampShimocha"></span>
+                    </div>
+                    <div class="bot-hand-tiles vertical-hand" id="botHandShimocha">
+                        <!-- 하가의 세로형 뒷면 패 13장 표시 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 플레이어 핸드 랙 (손패 거치대) -->
+            <section class="player-hand-container">
+                <div class="player-info-bar">
+                    <div class="player-profile">
+                        <span class="seat-badge">東家 (나)</span>
+                        <span class="player-name">High Roller Player</span>
+                    </div>
+                    <div class="hand-guide-msg" id="handGuideMsg">
+                        13장의 패가 정상 분배되었습니다.
+                    </div>
+                    <div class="hand-meta">
+                        <span id="handCountBadge">손패: 14장</span>
+                    </div>
+                </div>
+
+                <!-- 3D 목재/가죽 질감의 타일 랙 -->
+                <div class="tile-rack">
+                    <!-- 13장의 기본 손패 컨테이너 -->
+                    <div class="tiles-wrapper" id="playerHand">
+                        <!-- 마작패 타일들이 JS로 동적 생성됩니다 -->
+                    </div>
+
+                    <!-- 1장 드로우(쯔모) 패 전용 슬롯 (우측 살짝 띄움) -->
+                    <div class="draw-slot-wrapper">
+                        <div class="draw-slot-label">TSUMO</div>
+                        <div class="draw-tile-slot" id="tsumoTileSlot">
+                            <!-- 드로우한 1장이 들어갈 자리 -->
+                        </div>
+                    </div>
+
+                    <!-- 공개패 (Melds / 울기: 치, 펑, 깡) 세트 영역 (손패 우측 공개) -->
+                    <div class="melds-wrapper" id="playerMeldsWrapper">
+                        <div class="melds-label">MELDS (副露)</div>
+                        <div class="melds-container" id="playerMelds">
+                            <!-- 치/펑/깡 세트들이 묶음으로 렌더링됩니다 -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 하단 카지노 인터랙션 컨트롤 바 -->
+            <footer class="control-panel">
+                <div class="action-buttons-group">
+                    <button class="casino-btn btn-primary" id="btnNewDeal">
+                        <span class="btn-icon">🀅</span>
+                        <span class="btn-text">새 게임 배패 (13장 분배)</span>
+                    </button>
+                    <button class="casino-btn btn-secondary" id="btnSortHand">
+                        <span class="btn-icon">⚡</span>
+                        <span class="btn-text">손패 정렬 (理牌)</span>
+                    </button>
+                    <button class="casino-btn btn-accent" id="btnDrawTile">
+                        <span class="btn-icon">🀄</span>
+                        <span class="btn-text">패산 1장 쯔모 (Draw)</span>
+                    </button>
+                    <button class="casino-btn btn-outline" id="btnViewDeck">
+                        <span class="btn-icon">📜</span>
+                        <span class="btn-text">136장 전체 패산 검사</span>
+                    </button>
+                    <!-- 울기/론/쯔모 테스트 시연용 원클릭 버튼 그룹 -->
+                    <button class="casino-btn btn-test-meld" id="btnTestRon" title="론(Ron) 만관 화료 시나리오를 즉시 시연합니다">
+                        <span class="btn-icon">⚡</span>
+                        <span class="btn-text">론(Ron) 만관 시연</span>
+                    </button>
+                    <button class="casino-btn btn-test-tsumo" id="btnTestTsumo" title="쯔모(Tsumo) 하네만 화료 시나리오를 즉시 시연합니다">
+                        <span class="btn-icon">👑</span>
+                        <span class="btn-text">쯔모(Tsumo) 하네만 시연</span>
+                    </button>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- 치/펑/깡/론/쯔모/스킵 화면 중앙 인터랙션 오버레이 팝업 -->
+    <div class="action-overlay-modal hidden" id="actionCenterOverlay">
+        <div class="action-card-popup">
+            <div class="action-card-badge">MAHJONG ACTION</div>
+            <h3 class="action-popup-title gold-text" id="actionPopupTitle">선언 가능한 액션</h3>
+
+            <!-- 울기/화료 대상 패 정보 카드 -->
+            <div class="target-tile-preview">
+                <div class="target-tile-desc" id="actionSourceInfo">상가가 4만을 버렸습니다!</div>
+                <div class="target-tile-wrapper" id="actionTargetTileBox">
+                    <!-- 대상 마작패가 3D 타일로 크게 표시됨 -->
+                </div>
+            </div>
+
+            <!-- 액션 버튼 목록 (화면 중앙에 큼직하게 팝업) -->
+            <div class="action-buttons-list">
+                <button class="action-pop-btn btn-chi" id="btnActionChi">
+                    <span class="action-han">吃</span>
+                    <span class="action-text">치 (Chi)</span>
+                </button>
+                <button class="action-pop-btn btn-pon" id="btnActionPon">
+                    <span class="action-han">碰</span>
+                    <span class="action-text">펑 (Pon)</span>
+                </button>
+                <button class="action-pop-btn btn-kan" id="btnActionKan">
+                    <span class="action-han">槓</span>
+                    <span class="action-text">깡 (Kan)</span>
+                </button>
+                <button class="action-pop-btn btn-ron" id="btnActionRon">
+                    <span class="action-han">榮</span>
+                    <span class="action-text">론 (Ron)</span>
+                </button>
+                <button class="action-pop-btn btn-tsumo" id="btnActionTsumo">
+                    <span class="action-han">摸</span>
+                    <span class="action-text">쯔모 (Tsumo)</span>
+                </button>
+                <button class="action-pop-btn btn-skip" id="btnActionSkip">
+                    <span class="action-han">✕</span>
+                    <span class="action-text">스킵 (Pass)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 136장 전체 덱 검사 모달 (기획자 및 유저 검증용 모달) -->
+    <div class="modal-overlay hidden" id="deckModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <h2>136장 패산(牌山) 전체 구성 명세서</h2>
+                    <p class="modal-desc">만수(36) + 통수(36) + 삭수(36) + 자패(28) = 총 136장 정규 구성표</p>
+                </div>
+                <button class="modal-close-btn" id="modalCloseBtn">&times;</button>
+            </div>
+            
+            <div class="modal-body" id="modalDeckBody">
+                <!-- 136장 패 리스트가 카테고리별로 렌더링됩니다 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 승리(론/쯔모 화료) 영수증 축하 모달 -->
+    <div class="modal-overlay hidden" id="winModal">
+        <div class="modal-content win-modal-content">
+            <button class="modal-close-btn" id="winModalCloseBtn">&times;</button>
+
+            <!-- 리얼 카지노 정산 영수증 -->
+            <div class="casino-receipt-card" id="casinoReceiptCard">
+                <!-- 상단 지그재그 톱니 엣지 -->
+                <div class="receipt-zigzag-edge top"></div>
+
+                <!-- 영수증 헤더 -->
+                <div class="receipt-header-box">
+                    <div class="receipt-vip-badge">★ HIGH ROLLER MAHJONG VIP LOUNGE ★</div>
+                    <h2 class="receipt-main-title gold-text" id="winTitle">OFFICIAL WINNING RECEIPT</h2>
+                    <div class="receipt-meta-info">
+                        <span id="receiptDate">DATE: 2026-10-29 05:00:00</span>
+                        <span id="receiptSerial">SER: #HRM-2026-WIN-8821</span>
+                        <span>TABLE: VIP 01 · 東1局 0本場</span>
+                    </div>
+                </div>
+
+                <div class="receipt-divider-dashed"></div>
+
+                <!-- 승리자 & 화료 형태 정보 -->
+                <div class="receipt-winner-box">
+                    <div class="receipt-winner-line">
+                        <span class="winner-title">WINNER</span>
+                        <span class="winner-name gold-text" id="receiptWinnerName">東家 High Roller Player (친/親)</span>
+                    </div>
+                    <div class="receipt-win-type-tag" id="receiptWinTypeTag">
+                        <span class="type-icon" id="receiptWinIcon">🔥</span>
+                        <span class="type-text" id="receiptWinTypeName">론 (RON / 榮和) - 직격</span>
+                    </div>
+                    <div class="receipt-target-line" id="receiptTargetDesc">
+                        방총자: 상가 (VIP Bot 3) [4만] 직격 지불
+                    </div>
+                </div>
+
+                <!-- 14장 완성패 쇼케이스 -->
+                <div class="receipt-tiles-section">
+                    <div class="section-micro-label">COMPLETE 14 TILES (和了 14張)</div>
+                    <div class="win-hand-showcase" id="winHandShowcase">
+                        <!-- 14장의 패가 입체적으로 렌더링됩니다 -->
+                    </div>
+                </div>
+
+                <div class="receipt-divider-dashed"></div>
+
+                <!-- 성립된 족보(역) 목록 테이블 -->
+                <div class="receipt-yaku-section">
+                    <div class="yaku-table-header">
+                        <span class="col-yaku">성립 족보 (YAKU / 役)</span>
+                        <span class="col-han">판수 (HAN)</span>
+                    </div>
+                    <div class="receipt-yaku-list" id="receiptYakuList">
+                        <!-- 동적으로 족보 항목들이 렌더링됩니다 -->
+                    </div>
+                </div>
+
+                <div class="receipt-divider-solid"></div>
+
+                <!-- 판/부 요약 및 리밋 뱃지 -->
+                <div class="receipt-han-fu-row">
+                    <span class="han-fu-label">합계 판수 / 부수</span>
+                    <span class="han-fu-val gold-text" id="receiptHanFuVal">4판 30부</span>
+                </div>
+                <div class="receipt-limit-badge" id="receiptLimitBadge">
+                    ★ 滿貫 (MANGAN) 12,000 PTS ★
+                </div>
+
+                <div class="receipt-divider-dashed"></div>
+
+                <!-- 지불 분담 명세 -->
+                <div class="receipt-payment-breakdown" id="receiptPaymentBreakdown">
+                    <!-- 방총자 직격 또는 3인 분할 지불 명세가 렌더링됩니다 -->
+                </div>
+
+                <div class="receipt-divider-double"></div>
+
+                <!-- 최종 획득 점수 -->
+                <div class="receipt-grand-total">
+                    <div class="total-title-box">
+                        <span class="grand-total-label">TOTAL WINNINGS</span>
+                        <span class="total-currency">VIP CHIPS</span>
+                    </div>
+                    <span class="grand-total-val" id="receiptTotalPoints">+12,000 PTS</span>
+                </div>
+
+                <!-- 영수증 하단 바코드 & 공식 승인 인장 -->
+                <div class="receipt-footer-box">
+                    <div class="receipt-barcode">
+                        <div class="barcode-lines"></div>
+                        <div class="barcode-digits">|||| 8809 1360 2026 7771 ||||</div>
+                    </div>
+                    <div class="receipt-stamp-seal" id="receiptStampSeal">
+                        <span class="seal-chinese">榮和</span>
+                        <span class="seal-eng">AGARI</span>
+                    </div>
+                </div>
+
+                <div class="receipt-slogan">HIGH ROLLER VIP CLUB · ALL WINNINGS PAID IN FULL</div>
+
+                <!-- 하단 지그재그 톱니 엣지 -->
+                <div class="receipt-zigzag-edge bottom"></div>
+            </div>
+
+            <div class="win-modal-footer">
+                <button class="casino-btn btn-primary" id="btnNextRound">
+                    <span class="btn-icon">🀄</span>
+                    <span class="btn-text">새 게임 배패 진행 (New Deal)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 파일 연결 -->
+    <script src="js/mahjong.js"></script>
+</body>
+</html>
