@@ -1662,21 +1662,80 @@ body {
 .win-hand-showcase {
     display: flex;
     justify-content: center;
-    gap: 4px;
-    flex-wrap: wrap;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 10px;
+    align-items: flex-end; /* 모든 마작패 하단 선(baseline)에 맞춰 가지런히 정렬 */
+    gap: 3px;
+    flex-wrap: nowrap; /* 14장 패가 줄바꿈 없이 한 줄에 완벽히 피팅 */
+    background: rgba(0, 0, 0, 0.55);
+    padding: 12px 6px 8px 6px;
     border-radius: 10px;
     border: 1px solid rgba(212, 175, 55, 0.3);
+    box-sizing: border-box;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
-/* 화료 결정타 패 강조 (Agari Tile) */
+/* 영수증 내부 14장 쇼케이스 타일 규격 (하단 기준선에 맞춰 균일 배치) */
+.win-hand-showcase .mahjong-tile {
+    width: 25px;
+    height: 38px;
+    min-width: 23px;
+    max-width: 28px;
+    padding: 2px 1px;
+    cursor: default;
+    flex-shrink: 0;
+    align-self: flex-end; /* 모든 타일의 하단 베이스라인 일치 */
+    margin: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 
+        0 1px 0 #ffffff inset,
+        0 -2px 0 #c4b693 inset,
+        0 3px 0 #9f8f6b,
+        0 4px 0 var(--tile-back-green),
+        0 5px 8px rgba(0, 0, 0, 0.5);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* 영수증 타일은 마우스 호버로 위로 튀어나가지 않도록 비활성화 */
+.win-hand-showcase .mahjong-tile:hover {
+    transform: none !important;
+    box-shadow: 
+        0 1px 0 #ffffff inset,
+        0 -2px 0 #c4b693 inset,
+        0 3px 0 #9f8f6b,
+        0 4px 0 var(--tile-back-green),
+        0 5px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
+.win-hand-showcase .mahjong-tile .tile-corner-label {
+    font-size: 0.38rem;
+    line-height: 1;
+    padding-left: 1px;
+    font-weight: 800;
+}
+
+.win-hand-showcase .mahjong-tile .tile-symbol {
+    font-size: 1.3rem;
+    line-height: 1;
+    margin-top: -2px;
+}
+
+.win-hand-showcase .mahjong-tile .tile-sub-label {
+    display: none; /* 영수증 미니 타일에서는 텍스트 라벨을 숨겨 심볼이 정중앙에 위치 */
+}
+
+/* 화료 결정타 패 강조 (Agari Tile) : 하단 베이스라인은 맞추고 상단 및 테두리만 골드로 화려하게 승리 강조 */
 .win-hand-showcase .mahjong-tile.is-winning-agari {
-    transform: translateY(-5px) scale(1.05);
+    transform: translateY(-4px) scale(1.08) !important;
     border: 2px solid #ffd700 !important;
-    box-shadow: 0 0 16px rgba(255, 215, 0, 0.85), 0 8px 16px rgba(0, 0, 0, 0.7) !important;
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.95), 0 6px 12px rgba(0, 0, 0, 0.8) !important;
     position: relative;
-    z-index: 2;
+    z-index: 5;
+    align-self: flex-end;
 }
 
 .win-hand-showcase .mahjong-tile.is-winning-agari::after {
@@ -2368,21 +2427,25 @@ body {
 
     .win-hand-showcase {
         gap: 2px;
-        padding: 6px;
+        padding: 8px 4px 6px 4px;
+        align-items: flex-end;
+        flex-wrap: nowrap;
     }
 
     .win-hand-showcase .mahjong-tile {
-        width: 24px;
-        height: 34px;
+        width: 21px;
+        height: 33px;
+        min-width: 19px;
         padding: 1px 0;
+        align-self: flex-end;
     }
 
     .win-hand-showcase .mahjong-tile .tile-symbol {
-        font-size: 1.1rem;
+        font-size: 1.05rem;
     }
 
     .win-hand-showcase .mahjong-tile .tile-corner-label {
-        font-size: 0.36rem;
+        font-size: 0.33rem;
     }
 
     .win-hand-showcase .mahjong-tile .tile-sub-label {
@@ -2575,6 +2638,29 @@ body {
     .btn-icon {
         font-size: 0.7rem;
     }
+}
+
+/* ==============================================================================
+   10. 칩 증감 및 라운드 전환 비주얼 애니메이션
+   ============================================================================== */
+.chip-pulsing-gain {
+    animation: chipGainAnim 1.2s ease-out forwards;
+}
+
+.chip-pulsing-loss {
+    animation: chipLossAnim 1.2s ease-out forwards;
+}
+
+@keyframes chipGainAnim {
+    0% { transform: scale(1); filter: brightness(1); }
+    25% { transform: scale(1.35); color: #ffd700; text-shadow: 0 0 14px rgba(255, 215, 0, 0.9); }
+    100% { transform: scale(1); filter: brightness(1); }
+}
+
+@keyframes chipLossAnim {
+    0% { transform: scale(1); filter: brightness(1); }
+    25% { transform: scale(1.25); color: #ff5252; text-shadow: 0 0 12px rgba(255, 82, 82, 0.9); }
+    100% { transform: scale(1); filter: brightness(1); }
 }
 
 

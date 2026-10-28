@@ -191,6 +191,8 @@ class MahjongEngine {
     constructor() {
         this.fullDeck = [];
         this.wall = [];
+        this.roundIndex = 0; // 0: 동1국, 1: 동2국, 2: 동3국, 3: 동4국, 4: 남1국 ...
+        this.dealerIndex = 0; // 딜러(친/오야): 0 (나), 1 (하가), 2 (대면), 3 (상가)
         
         // 4인 플레이어 데이터 모델 (0: 나/東, 1: 하가/南, 2: 대면/西, 3: 상가/北)
         this.players = [
@@ -202,6 +204,7 @@ class MahjongEngine {
 
         this.currentTurn = 0;
         this.init136Deck();
+        this.updateSeatWinds();
     }
 
     init136Deck() {
@@ -233,9 +236,50 @@ class MahjongEngine {
         }
     }
 
-    startNewGame() {
+    /**
+     * 친(딜러) 위치에 따라 4명의 자리바람(Seat Wind) 업데이트
+     * 딜러는 항상 東(친), 반시계 순서로 東 -> 南 -> 西 -> 北
+     */
+    updateSeatWinds() {
+        const winds = ['東', '南', '西', '北'];
+        for (let pid = 0; pid < 4; pid++) {
+            const relPos = (pid - this.dealerIndex + 4) % 4;
+            this.players[pid].wind = winds[relPos];
+        }
+    }
+
+    /**
+     * 현재 라운드(국) 정보 반환
+     */
+    getRoundInfo() {
+        const roundWind = (this.roundIndex < 4) ? '東' : '南';
+        const roundNumber = (this.roundIndex % 4) + 1;
+        const windName = roundWind === '東' ? '동' : '남';
+        return {
+            roundIndex: this.roundIndex,
+            dealerIndex: this.dealerIndex,
+            roundWind,
+            roundNumber,
+            roundName: `${roundWind} ${roundNumber}局 (${windName}${roundNumber}국)`,
+            compassTag: `${roundWind} ${roundNumber}局`,
+            dealerPlayer: this.players[this.dealerIndex]
+        };
+    }
+
+    /**
+     * 새 게임 또는 새 라운드 시작
+     * @param {boolean} resetScores 칩 점수와 라운드 번호까지 25,000점으로 완전 초기화할지 여부
+     */
+    startNewGame(resetScores = true) {
+        if (resetScores) {
+            this.roundIndex = 0;
+            this.dealerIndex = 0;
+            this.players.forEach(p => { p.chips = 25000; });
+        }
+
+        this.updateSeatWinds();
         this.shuffleWall();
-        this.currentTurn = 0;
+        this.currentTurn = this.dealerIndex;
 
         // 4명 모두 손패, 쯔모패, 공개패(Melds), 버림패 초기화
         this.players.forEach(p => {
@@ -257,15 +301,25 @@ class MahjongEngine {
         // 플레이어 손패 정렬
         this.sortHand(0);
 
-        // 동가(나) 선공 쯔모: 14번째 패 드로우 (잔여 83장)
+        // 친(딜러) 선공 쯔모: 14번째 패 드로우 (잔여 83장)
         if (this.wall.length > 0) {
-            this.players[0].tsumoTile = this.wall.pop();
+            this.players[this.dealerIndex].tsumoTile = this.wall.pop();
         }
 
         return {
             players: this.players,
-            remainingWallCount: this.wall.length
+            remainingWallCount: this.wall.length,
+            roundInfo: this.getRoundInfo()
         };
+    }
+
+    /**
+     * 다음 국으로 라운드 전진 (친 이전 및 새 배패)
+     */
+    advanceToNextRound() {
+        this.roundIndex++;
+        this.dealerIndex = this.roundIndex % 4;
+        return this.startNewGame(false); // 점수는 유지하며 새 국 시작
     }
 
     drawTileForPlayer(playerId) {
@@ -305,7 +359,103 @@ class MahjongEngine {
         return null;
     }
 
-    discardRandomTileForBot(botId) {
+    /**
+     * ==============================================================================
+     * ★ 기초 AI 휴리스틱(Heuristic) 타패 가치 평가 알고리즘
+     * ==============================================================================
+     * [우선순위 규칙]
+     * 1순위: 혼자 있는 고립 자패 (풍패/삼원패) - 특히 객풍패 최우선 버림
+     * 2순위: 혼자 있는 1, 9 요구패 (주변에 2, 3이 없어 슌츠 구성 불가)
+     * 3순위: 혼자 있는 2, 8 요구 인접패
+     * 4순위: 혼자 있는 3~7 중장패 (양면 발전 가능성으로 가장 늦게 버림)
+     * 보존패: 완성된 슌츠, 또이츠(2장 머리/펑 대기), 커츠(3장 암커)
+     * ==============================================================================
+     */
+    evaluateTileDiscardPriority(tile, fullHand, roundWind = '東', botWind = '南') {
+        const type = tile.type;
+        const val = tile.value;
+
+        // 1. 손패 내에서 이 패와 동일한 패의 개수
+        const sameTiles = fullHand.filter(t => t.type === type && t.value === val);
+        const sameCount = sameTiles.length;
+
+        // 커츠 (동일 3장 이상) : 절대 버리지 않음!
+        if (sameCount >= 3) return -1000;
+
+        // 또이츠 (동일 2장) : 머리 또는 펑 대기 패로 강력 보존
+        if (sameCount === 2) return -300;
+
+        // --- 여기서부터는 손패에 혼자 1장만 있는 고립패 (sameCount === 1) ---
+
+        // 2. 자패 (바람패 / 삼원패) : 슌츠(연속패)를 만들 수 없으므로 1장짜리는 최우선 타패!
+        if (['wind', 'dragon'].includes(type)) {
+            let score = 1000; // 기본 자패 고립패 점수
+
+            if (type === 'dragon') {
+                // 삼원패 (백/발/중) : 누구든 3장 모으면 1판 역패이므로 살짝 가치 있음
+                score = 940;
+            } else if (type === 'wind') {
+                const windMap = { 'east': '東', 'south': '南', 'west': '西', 'north': '北' };
+                const currentWindChar = windMap[val] || val;
+
+                // 자풍패 (내가 속한 바람) 또는 장풍패 (현재 국의 바람)인 경우 역패 가능성
+                if (currentWindChar === botWind || currentWindChar === roundWind) {
+                    score = 900;
+                } else {
+                    // 객풍패 (나에게도 판에도 역이 안 되는 바람패) : 마작에서 가장 쓸모없는 패 -> 최우선 타패!
+                    score = 1050;
+                }
+            }
+
+            return score;
+        }
+
+        // 3. 수패 (만수/통수/삭수) : 슌츠(연속패) 가능성 및 터미널(1, 9) 평가
+        const numVal = Number(val);
+        const sameSuitTiles = fullHand.filter(t => t.type === type);
+
+        // 주변 패 보유 여부
+        const hasMinus1 = sameSuitTiles.some(t => Number(t.value) === numVal - 1);
+        const hasPlus1  = sameSuitTiles.some(t => Number(t.value) === numVal + 1);
+        const hasMinus2 = sameSuitTiles.some(t => Number(t.value) === numVal - 2);
+        const hasPlus2  = sameSuitTiles.some(t => Number(t.value) === numVal + 2);
+
+        // (3-1) 이미 슌츠(완성 멘츠)의 일부인 경우
+        if ((hasMinus1 && hasPlus1) || (hasMinus2 && hasMinus1) || (hasPlus1 && hasPlus2)) {
+            return -200; // 완성된 슌츠 형태이므로 보존
+        }
+
+        // (3-2) 양면/변짱 타츠인 경우 (바로 옆에 인접패가 있음)
+        if (hasMinus1 || hasPlus1) {
+            // 1-2 또는 8-9 (변짱 타츠)
+            if ((numVal === 1 && hasPlus1) || (numVal === 9 && hasMinus1)) {
+                return 40;
+            }
+            // 2-3, 3-4, 4-5 등 (양면 타츠) : 매우 높은 가치로 보존
+            return -100;
+        }
+
+        // (3-3) 간짱 타츠인 경우 (한 칸 뛴 패가 있음 : 1-3, 4-6 등)
+        if (hasMinus2 || hasPlus2) {
+            return 80;
+        }
+
+        // (3-4) 완전히 혼자 덩그러니 있는 고립 수패 (주변 ±1, ±2가 전혀 없음)
+        // 1순위 자패에 이어, "그다음으로 1과 9(요구패)를 버리도록"
+        if (numVal === 1 || numVal === 9) {
+            return 600; // 고립된 1, 9 요구패 (자패 다음으로 최우선 타패!)
+        }
+        if (numVal === 2 || numVal === 8) {
+            return 400; // 고립된 2, 8 패
+        }
+        // 3 ~ 7 중장패 고립패
+        return 200; // 중장패는 슌츠 연결 확률이 가장 높으므로 고립패 중 가장 나중에 정리
+    }
+
+    /**
+     * 봇의 손패와 쯔모패 중에서 휴리스틱 알고리즘으로 최적의 타패 선정 및 버리기 실행
+     */
+    discardHeuristicTileForBot(botId) {
         const bot = this.players[botId];
         if (!bot) return null;
 
@@ -313,9 +463,67 @@ class MahjongEngine {
         if (bot.tsumoTile) allCandidates.push(bot.tsumoTile);
         if (allCandidates.length === 0) return null;
 
-        const randomIndex = Math.floor(Math.random() * allCandidates.length);
-        const chosenTile = allCandidates[randomIndex];
-        return this.discardTile(botId, chosenTile.uid);
+        const roundWind = (this.roundIndex < 4) ? '東' : '南';
+        const botWind = bot.wind;
+
+        let bestTile = allCandidates[0];
+        let maxScore = -99999;
+
+        allCandidates.forEach(tile => {
+            const score = this.evaluateTileDiscardPriority(tile, allCandidates, roundWind, botWind);
+            if (score > maxScore) {
+                maxScore = score;
+                bestTile = tile;
+            }
+        });
+
+        return this.discardTile(botId, bestTile.uid);
+    }
+
+    // 기존 호환용 메서드
+    discardRandomTileForBot(botId) {
+        return this.discardHeuristicTileForBot(botId);
+    }
+
+    /**
+     * 화료 결과에 따른 점수 정산 실행 (론: 방총자 -> 승리자 직격 / 쯔모: 패자 분할 지불)
+     */
+    settleScores(winData) {
+        const winType = winData.winType || winData.type;
+        const winnerId = (winData.winnerId !== undefined) ? winData.winnerId : 0;
+        const winner = this.players[winnerId];
+        const changes = {};
+
+        if (winType === 'ron') {
+            const payerId = (winData.fromPlayerId !== undefined && winData.fromPlayerId !== null) ? winData.fromPlayerId : 3;
+            const payer = this.players[payerId];
+            const payAmount = Math.min(payer.chips, winData.totalPoints);
+
+            payer.chips -= payAmount;
+            winner.chips += payAmount;
+
+            changes[payer.id] = -payAmount;
+            changes[winner.id] = payAmount;
+        } else {
+            // 쯔모(Tsumo) 정산
+            let totalGained = 0;
+            this.players.forEach(p => {
+                if (p.id !== winner.id) {
+                    const payAmount = Math.min(p.chips, winData.splitAmount);
+                    p.chips -= payAmount;
+                    totalGained += payAmount;
+                    changes[p.id] = -payAmount;
+                }
+            });
+            winner.chips += totalGained;
+            changes[winner.id] = totalGained;
+        }
+
+        return {
+            winType,
+            winnerId: winner.id,
+            changes
+        };
     }
 
     sortHand(playerId = 0) {
@@ -542,358 +750,57 @@ class MahjongEngine {
     // ==========================================================================
 
     /**
-     * 14장의 패를 분석하여 성립된 족보(역) 목록, 판수, 부수, 총 획득 점수를 계산
+     * ==========================================================================
+     * ★ 수학적 족보 판별 및 점수 계산 엔진 연동 (YakuEngine 위임)
+     * ==========================================================================
+     * 14장의 패를 분석하여 성립된 족보(역) 목록, 판수, 부수, 총 획득 점수를 계산합니다.
+     * 모든 세부 족보 판별 및 수학적 점수 계산은 js/yaku-engine.js에 분리되어 있습니다.
+     * 
      * @param {Array} allTiles 전체 14장의 패 목록
      * @param {Object} winningTile 화료를 완성시킨 패
      * @param {string} winType 'ron' | 'tsumo'
      * @param {Array} melds 이미 선언된 공개패 세트 목록
-     * @param {boolean} isDealer 친(Dealer / 東家) 여부 (플레이어 기본 true)
+     * @param {boolean} isDealer 친(Dealer / 東家) 여부
      * @param {number} customDora 시연/보너스 도라 판수
+     * @param {string} roundWind 현재 국 바람 ('east', 'south' 등)
+     * @param {string} seatWind 플레이어 바람 ('east', 'south' 등)
      */
-    calculateYakuAndScore(allTiles, winningTile, winType, melds = [], isDealer = true, customDora = 0) {
-        const isMenzen = (melds.length === 0);
-        const isTsumo = (winType === 'tsumo');
-        const sortedTiles = [...allTiles].sort((a, b) => a.sortOrder - b.sortOrder);
-
-        // 1. 칠대자 (七対子 / Chiitoitsu) 특수형 검사
-        if (isMenzen && sortedTiles.length === 14) {
-            const counts = {};
-            sortedTiles.forEach(t => {
-                const k = `${t.type}_${t.value}`;
-                counts[k] = (counts[k] || 0) + 1;
-            });
-            const distinctPairs = Object.keys(counts).filter(k => counts[k] === 2);
-            if (distinctPairs.length === 7) {
-                const yakuList = [];
-                yakuList.push({ name: '칠대자 (치이또이츠)', hanzi: '七対子', han: 2, desc: '서로 다른 7쌍의 또이츠 완성' });
-
-                // 칠대자 + 탕야오 검사
-                const isTanyao = sortedTiles.every(t => ['wan', 'pin', 'sou'].includes(t.type) && Number(t.value) >= 2 && Number(t.value) <= 8);
-                if (isTanyao) {
-                    yakuList.push({ name: '탕야오 (단요구)', hanzi: '断幺九', han: 1, desc: '1, 9, 자패가 없는 2~8 수패' });
-                }
-
-                // 칠대자 + 혼일색 검사
-                const suits = new Set(sortedTiles.filter(t => ['wan', 'pin', 'sou'].includes(t.type)).map(t => t.type));
-                const hasHonors = sortedTiles.some(t => ['wind', 'dragon'].includes(t.type));
-                if (suits.size === 1 && hasHonors) {
-                    yakuList.push({ name: '혼일색 (혼이츠)', hanzi: '混一色', han: 3, desc: '한 가지 수패와 자패로만 구성' });
-                } else if (suits.size === 1 && !hasHonors) {
-                    yakuList.push({ name: '청일색 (칭이츠)', hanzi: '清一色', han: 6, desc: '한 가지 수패로만 구성' });
-                }
-
-                if (isTsumo) {
-                    yakuList.push({ name: '멘젠 쯔모', hanzi: '門前清自摸和', han: 1, desc: '울지 않고 패산에서 직접 뽑아 화료' });
-                }
-                yakuList.push({ name: '리치 (선언 화료)', hanzi: '立直', han: 1, desc: '멘젠 텐파이 선언 화료' });
-
-                if (customDora > 0) {
-                    yakuList.push({ name: `도라 (현상패 x${customDora})`, hanzi: '懸賞牌', han: customDora, desc: '보너스 행운의 현상패' });
-                }
-
-                const totalHan = yakuList.reduce((sum, y) => sum + y.han, 0);
-                const fu = 25; // 칠대자는 25부 고정
-                return this.buildScoreResult(yakuList, totalHan, fu, winType, isDealer);
-            }
-        }
-
-        // 2. 일반형 (4멘츠 1작두) 분해 탐색
-        // 순수 손패 추출 (공개패 제외)
-        const closedTiles = allTiles.filter(t => !melds.some(m => m.tiles.some(mt => mt.uid === t.uid)));
-        const decompositions = this.getAllDecompositions(closedTiles);
-
-        // 공개패를 멘츠에 결합
-        const openMentsuList = melds.map(m => ({
-            type: m.type === 'chi' ? 'shuntsu' : (m.type === 'kan' ? 'kantsu' : 'koutsu'),
-            tiles: m.tiles,
-            isOpen: true
-        }));
-
-        let bestResult = null;
-
-        for (const decomp of decompositions) {
-            const allMentsu = [...decomp.mentsuList, ...openMentsuList];
-            if (allMentsu.length !== 4) continue;
-
-            const yakuList = [];
-
-            // (1) 탕야오 (断幺九 / Tanyao, 1판)
-            const isTanyao = sortedTiles.every(t => ['wan', 'pin', 'sou'].includes(t.type) && Number(t.value) >= 2 && Number(t.value) <= 8);
-            if (isTanyao) {
-                yakuList.push({ name: '탕야오 (단요구)', hanzi: '断幺九', han: 1, desc: '1, 9, 자패가 없는 2~8 수패' });
-            }
-
-            // (2) 멘젠 쯔모 (門前清自摸和 / Menzen Tsumo, 1판)
-            if (isMenzen && isTsumo) {
-                yakuList.push({ name: '멘젠 쯔모', hanzi: '門前清自摸和', han: 1, desc: '울지 않고 패산에서 직접 뽑아 화료' });
-            }
-
-            // (3) 리치 (立直 / Riichi, 1판)
-            if (isMenzen) {
-                yakuList.push({ name: '리치 (선언 화료)', hanzi: '立直', han: 1, desc: '멘젠 텐파이 선언 화료' });
-            }
-
-            // (4) 역패 (役牌 / Yakuhai, 각 1판)
-            allMentsu.forEach(m => {
-                if (['koutsu', 'kantsu'].includes(m.type)) {
-                    const first = m.tiles[0];
-                    if (first.type === 'dragon') {
-                        if (first.value === 'white') yakuList.push({ name: '삼원패·백 (하쿠)', hanzi: '役牌·白', han: 1, desc: '백 3장 커자 완성' });
-                        if (first.value === 'green') yakuList.push({ name: '삼원패·발 (하츠)', hanzi: '役牌·發', han: 1, desc: '발 3장 커자 완성' });
-                        if (first.value === 'red') yakuList.push({ name: '삼원패·중 (츈)', hanzi: '役牌·中', han: 1, desc: '중 3장 커자 완성' });
-                    }
-                    if (first.type === 'wind' && first.value === 'east') {
-                        yakuList.push({ name: '자풍패·동 (東家)', hanzi: '自風·東', han: 1, desc: '플레이어 바람(東) 패 3장 커자' });
-                        yakuList.push({ name: '장풍패·동 (東場)', hanzi: '場風·東', han: 1, desc: '현재 판(東1국) 바람패 3장 커자' });
-                    }
-                }
-            });
-
-            // (5) 핑후 (平和 / Pinfu, 1판)
-            if (isMenzen) {
-                const allShuntsu = allMentsu.every(m => m.type === 'shuntsu');
-                const head = decomp.jantou[0];
-                const headNotYakuhai = !(head.type === 'dragon' || (head.type === 'wind' && head.value === 'east'));
-                // 양면 대기 검사: winningTile이 어떤 슌츠의 양 끝 중 하나인가
-                let isRyanmen = false;
-                if (winningTile && !['wind', 'dragon'].includes(winningTile.type)) {
-                    const wVal = Number(winningTile.value);
-                    allMentsu.forEach(m => {
-                        if (m.type === 'shuntsu' && m.tiles[0].type === winningTile.type) {
-                            const minVal = Math.min(...m.tiles.map(t => Number(t.value)));
-                            const maxVal = Math.max(...m.tiles.map(t => Number(t.value)));
-                            if ((wVal === minVal && minVal > 1) || (wVal === maxVal && maxVal < 9)) {
-                                isRyanmen = true;
-                            }
-                        }
-                    });
-                }
-                if (allShuntsu && headNotYakuhai && isRyanmen) {
-                    yakuList.push({ name: '핑후 (핀후)', hanzi: '平和', han: 1, desc: '4순자·비역패 머리·양면 대기' });
-                }
-            }
-
-            // (6) 또이또이 (対々和 / Toitoi, 2판)
-            const allKoutsu = allMentsu.every(m => ['koutsu', 'kantsu'].includes(m.type));
-            if (allKoutsu) {
-                yakuList.push({ name: '또이또이 (또이또이호)', hanzi: '対々和', han: 2, desc: '4개의 커자 또는 깡으로 완성' });
-            }
-
-            // (7) 혼일색 (混一色 / Honitsu) & 청일색 (清一色 / Chinitsu)
-            const suits = new Set(sortedTiles.filter(t => ['wan', 'pin', 'sou'].includes(t.type)).map(t => t.type));
-            const hasHonors = sortedTiles.some(t => ['wind', 'dragon'].includes(t.type));
-            if (suits.size === 1 && hasHonors) {
-                yakuList.push({ name: '혼일색 (혼이츠)', hanzi: '混一色', han: isMenzen ? 3 : 2, desc: '한 종류의 수패와 자패로만 구성' });
-            } else if (suits.size === 1 && !hasHonors) {
-                yakuList.push({ name: '청일색 (칭이츠)', hanzi: '清一色', han: isMenzen ? 6 : 5, desc: '오직 한 종류의 수패로만 구성' });
-            }
-
-            // (8) 이페코 (一盃口 / Iipeikou, 1판)
-            if (isMenzen) {
-                const shuntsus = allMentsu.filter(m => m.type === 'shuntsu');
-                if (shuntsus.length >= 2) {
-                    const signatures = shuntsus.map(s => `${s.tiles[0].type}_${Math.min(...s.tiles.map(t => Number(t.value)))}`);
-                    const hasDup = signatures.some((sig, i) => signatures.indexOf(sig) !== i);
-                    if (hasDup) {
-                        yakuList.push({ name: '이페코 (일배구)', hanzi: '一盃口', han: 1, desc: '동일한 수패 슌츠 2세트 보유' });
-                    }
-                }
-            }
-
-            // (9) 도라 (懸賞牌 / Dora)
-            if (customDora > 0) {
-                yakuList.push({ name: `도라 (현상패 x${customDora})`, hanzi: '懸賞牌', han: customDora, desc: '보너스 행운의 현상패' });
-            }
-
-            // 기본 1판 보장
-            if (yakuList.length === 0) {
-                yakuList.push({ name: '화료 기본역', hanzi: '和了', han: 1, desc: '14장 정규 족보 완성' });
-            }
-
-            const totalHan = yakuList.reduce((sum, y) => sum + y.han, 0);
-
-            // 부수(Fu) 계산
-            let fu = 20; // 저부
-            if (isMenzen && !isTsumo) fu += 10; // 멘젠 론
-            if (isTsumo) fu += 2; // 쯔모 2부
-
-            // 머리(작두) 부수
-            const headTile = decomp.jantou[0];
-            if (headTile.type === 'dragon' || (headTile.type === 'wind' && headTile.value === 'east')) {
-                fu += 2;
-            }
-
-            // 멘츠 부수
-            allMentsu.forEach(m => {
-                if (['koutsu', 'kantsu'].includes(m.type)) {
-                    const isHonorOrTerminal = ['wind', 'dragon'].includes(m.tiles[0].type) || [1, 9].includes(Number(m.tiles[0].value));
-                    let baseM = isHonorOrTerminal ? 4 : 2;
-                    if (!m.isOpen) baseM *= 2; // 암커
-                    if (m.type === 'kantsu') baseM *= 4; // 깡
-                    fu += baseM;
-                }
-            });
-
-            // 핑후 쯔모 예외(20부 고정)
-            const isPinfu = yakuList.some(y => y.hanzi === '平和');
-            if (isPinfu && isTsumo) fu = 20;
-            else if (isPinfu && !isTsumo) fu = 30;
-            else {
-                // 10의 자리 올림
-                fu = Math.ceil(fu / 10) * 10;
-                if (fu < 30) fu = 30;
-            }
-
-            const res = this.buildScoreResult(yakuList, totalHan, fu, winType, isDealer);
-            if (!bestResult || res.totalPoints > bestResult.totalPoints) {
-                bestResult = res;
-            }
-        }
-
-        return bestResult || this.buildScoreResult(
-            [{ name: '기본 화료', hanzi: '和了', han: 1, desc: '14장 완성' }],
-            1, 30, winType, isDealer
-        );
-    }
-
-    /**
-     * 판수와 부수를 바탕으로 점수, 리밋 이름(만관 등), 지불 분담 명세 생성
-     */
-    buildScoreResult(yakuList, totalHan, fu, winType, isDealer = true) {
-        let limitName = '';
-        let totalPoints = 0;
-        let payerPoints = 0;
-
-        // 마작 기본 점수 A = fu * 2^(2 + totalHan)
-        const a = fu * Math.pow(2, 2 + totalHan);
-
-        if (totalHan >= 13) {
-            limitName = '역만 (YAKUMAN)';
-            totalPoints = isDealer ? 48000 : 32000;
-            payerPoints = isDealer ? 16000 : 8000;
-        } else if (totalHan >= 11) {
-            limitName = '삼배만 (SANBAIMAN)';
-            totalPoints = isDealer ? 36000 : 24000;
-            payerPoints = isDealer ? 12000 : 6000;
-        } else if (totalHan >= 8) {
-            limitName = '바이만 (BAIMAN)';
-            totalPoints = isDealer ? 24000 : 16000;
-            payerPoints = isDealer ? 8000 : 4000;
-        } else if (totalHan >= 6) {
-            limitName = '하네만 (HANEMAN)';
-            totalPoints = isDealer ? 18000 : 12000;
-            payerPoints = isDealer ? 6000 : 3000;
-        } else if (totalHan >= 5 || a >= 2000 || (totalHan >= 4 && fu >= 40)) {
-            limitName = '만관 (MANGAN)';
-            totalPoints = isDealer ? 12000 : 8000;
-            payerPoints = isDealer ? 4000 : 2000;
-        } else {
-            // 만관 미만 점수 계산
-            if (isDealer) {
-                if (winType === 'ron') {
-                    totalPoints = Math.ceil((a * 6) / 100) * 100;
-                    payerPoints = totalPoints;
-                } else {
-                    payerPoints = Math.ceil((a * 2) / 100) * 100;
-                    totalPoints = payerPoints * 3;
-                }
-            } else {
-                if (winType === 'ron') {
-                    totalPoints = Math.ceil((a * 4) / 100) * 100;
-                    payerPoints = totalPoints;
-                } else {
-                    payerPoints = Math.ceil((a * 1) / 100) * 100;
-                    totalPoints = payerPoints * 4;
-                }
-            }
-        }
-
-        return {
-            yakuList,
-            totalHan,
-            fu,
-            limitName,
-            totalPoints,
-            paymentInfo: {
+    calculateYakuAndScore(allTiles, winningTile, winType, melds = [], isDealer = true, customDora = 0, roundWind = 'east', seatWind = 'east') {
+        if (typeof YakuEngine !== 'undefined' && YakuEngine.evaluateHand) {
+            return YakuEngine.evaluateHand({
+                tiles: allTiles,
+                winningTile,
                 winType,
-                totalPoints,
-                splitAmount: payerPoints
-            }
+                melds,
+                isDealer,
+                roundWind,
+                seatWind,
+                isRiichi: (melds.length === 0),
+                customDora
+            });
+        }
+
+        // YakuEngine 미로드 시 폴백 안전 장치
+        const totalHan = 1 + (customDora || 0);
+        const totalPoints = isDealer ? 12000 : 8000;
+        return {
+            yakuList: [{ name: '기본 화료', hanzi: '和了', han: 1, desc: '14장 정규 족보 완성' }],
+            totalHan,
+            fu: 30,
+            limitName: '기본 화료',
+            totalPoints,
+            paymentInfo: { winType, totalPoints, splitAmount: Math.floor(totalPoints / 3) }
         };
     }
 
     /**
-     * 손패에서 가능한 모든 (1작두 + N멘츠) 분해 조합 탐색
+     * 호환성을 위한 멘츠 분해 헬퍼 (YakuEngine 위임)
      */
     getAllDecompositions(tiles) {
-        if (tiles.length === 0) return [{ jantou: [], mentsuList: [] }];
-        if (tiles.length % 3 !== 2) return [];
-
-        const sorted = [...tiles].sort((a, b) => a.sortOrder - b.sortOrder);
-        const uniqueKeys = [...new Set(sorted.map(t => `${t.type}_${t.value}`))];
-        const results = [];
-
-        for (const key of uniqueKeys) {
-            const pairMatches = sorted.filter(t => `${t.type}_${t.value}` === key);
-            if (pairMatches.length >= 2) {
-                const jantou = [pairMatches[0], pairMatches[1]];
-                const remaining = [...sorted];
-                remaining.splice(remaining.findIndex(t => t.uid === pairMatches[0].uid), 1);
-                remaining.splice(remaining.findIndex(t => t.uid === pairMatches[1].uid), 1);
-
-                const mentsuDecomps = this.findMentsuCombinations(remaining);
-                mentsuDecomps.forEach(mList => {
-                    results.push({ jantou, mentsuList: mList });
-                });
-            }
+        if (typeof YakuEngine !== 'undefined' && YakuEngine.getAllDecompositions) {
+            return YakuEngine.getAllDecompositions(tiles);
         }
-        return results;
-    }
-
-    /**
-     * 3k장의 패가 커자/순자로 분해되는 모든 조합 반환
-     */
-    findMentsuCombinations(tiles) {
-        if (tiles.length === 0) return [[]];
-        const first = tiles[0];
-        const combinations = [];
-
-        // 1. 커자 (동일 패 3장)
-        const tripletMatches = tiles.filter(t => t.type === first.type && t.value === first.value);
-        if (tripletMatches.length >= 3) {
-            const rest = [...tiles];
-            const koutsuTiles = [];
-            for (let i = 0; i < 3; i++) {
-                const idx = rest.findIndex(t => t.type === first.type && t.value === first.value);
-                koutsuTiles.push(...rest.splice(idx, 1));
-            }
-            const sub = this.findMentsuCombinations(rest);
-            sub.forEach(list => {
-                combinations.push([{ type: 'koutsu', tiles: koutsuTiles }, ...list]);
-            });
-        }
-
-        // 2. 슌츠 (연속 3장)
-        if (!['wind', 'dragon'].includes(first.type)) {
-            const val = Number(first.value);
-            const next1 = tiles.find(t => t.type === first.type && Number(t.value) === val + 1);
-            const next2 = tiles.find(t => t.type === first.type && Number(t.value) === val + 2);
-
-            if (next1 && next2) {
-                const rest = [...tiles];
-                const shuntsuTiles = [];
-                shuntsuTiles.push(...rest.splice(rest.findIndex(t => t.uid === first.uid), 1));
-                shuntsuTiles.push(...rest.splice(rest.findIndex(t => t.uid === next1.uid), 1));
-                shuntsuTiles.push(...rest.splice(rest.findIndex(t => t.uid === next2.uid), 1));
-
-                const sub = this.findMentsuCombinations(rest);
-                sub.forEach(list => {
-                    combinations.push([{ type: 'shuntsu', tiles: shuntsuTiles }, ...list]);
-                });
-            }
-        }
-
-        return combinations;
+        return [];
     }
 }
 
@@ -907,11 +814,12 @@ class MahjongApp {
         this.isProcessingBotTurns = false;
         this.latestDiscardUid = null;
         this.pendingActionResolve = null;
+        this.lastWinData = null; // 승리 정산 대기 데이터 (영수증 창을 닫을 때 칩 반영 및 다음 국 진행)
 
         this.initDomElements();
         this.bindEvents();
         
-        // 4인 초기 게임 시작
+        // 4인 초기 게임 시작 (동 1국)
         this.handleNewDeal();
     }
 
@@ -958,7 +866,25 @@ class MahjongApp {
             lampKamicha: document.getElementById('lampKamicha'),
             botHandKamicha: document.getElementById('botHandKamicha'),
 
-            // 중앙 턴 나침반 바람 뱃지
+            // 칩 및 바람 태그 엘리먼트 (동적 갱신용)
+            playerChips: document.getElementById('playerChips'),
+            seatPlayerBadge: document.querySelector('.player-profile .seat-badge'),
+            botChipsShimocha: document.querySelector('#seatShimocha .bot-chips'),
+            botChipsToimen: document.querySelector('#seatToimen .bot-chips'),
+            botChipsKamicha: document.querySelector('#seatKamicha .bot-chips'),
+            botWindShimocha: document.querySelector('#seatShimocha .bot-wind-tag'),
+            botWindToimen: document.querySelector('#seatToimen .bot-wind-tag'),
+            botWindKamicha: document.querySelector('#seatKamicha .bot-wind-tag'),
+
+            // River 라벨 텍스트 엘리먼트
+            riverNamePlayer: document.querySelector('.player-river .river-owner-name'),
+            riverNameShimocha: document.querySelector('.shimocha-river .river-owner-name'),
+            riverNameToimen: document.querySelector('.toimen-river .river-owner-name'),
+            riverNameKamicha: document.querySelector('.kamicha-river .river-owner-name'),
+
+            // 중앙 턴 나침반 바람 뱃지 및 라운드 표시
+            roundDisplay: document.getElementById('roundDisplay'),
+            compassRoundTag: document.getElementById('compassRoundTag'),
             compassEast: document.getElementById('compassEast'),
             compassSouth: document.getElementById('compassSouth'),
             compassWest: document.getElementById('compassWest'),
@@ -1004,7 +930,7 @@ class MahjongApp {
     }
 
     bindEvents() {
-        // 새 게임 배패
+        // 새 게임 배패 (동 1국 완전 초기화)
         this.dom.btnNewDeal.addEventListener('click', () => {
             if (this.isProcessingBotTurns) return;
             this.audio.playShuffleSound();
@@ -1052,13 +978,14 @@ class MahjongApp {
             this.dom.soundToggleBtn.style.opacity = isEnabled ? '1' : '0.5';
         });
 
-        // 승리 모달 새 게임 버튼
+        // 승리 모달 확인 및 다음 국 진행 (결과 영수증 창을 닫으면 칩 증감 및 다음 국 진행!)
         this.dom.btnNextRound.addEventListener('click', () => {
             this.dom.winModal.classList.add('hidden');
-            this.handleNewDeal();
+            this.handleRoundSettlementAndNext();
         });
         this.dom.winModalCloseBtn.addEventListener('click', () => {
             this.dom.winModal.classList.add('hidden');
+            this.handleRoundSettlementAndNext();
         });
 
         // 덱 검사 모달
@@ -1103,7 +1030,7 @@ class MahjongApp {
     }
 
     /**
-     * 플레이어 타패 처리 및 봇들의 턴 순차 진행
+     * 플레이어 타패 처리 및 봇들의 턴 순차 진행 (게임 루프)
      */
     async handlePlayerTileClick(tile) {
         if (this.isProcessingBotTurns || this.engine.currentTurn !== 0) {
@@ -1133,29 +1060,38 @@ class MahjongApp {
 
         this.dom.handGuideMsg.textContent = `내가 [${discarded.name}]을(를) 버렸습니다. 봇들의 턴이 진행됩니다...`;
 
-        // 2. 봇들의 턴 순차 실행
-        await this.runBotTurns();
+        // 2. 봇들의 턴 순차 실행 (하가 1부터 시작하여 대면 2 -> 상가 3 -> 나 0으로 순환)
+        await this.runBotTurnSequence(1, false);
     }
 
     /**
-     * 3인 AI 봇 순차 턴 실행 및 중간 울기/론 인터랙션 검사
+     * ==============================================================================
+     * ★ 범용 4인 게임 루프 (Game Loop): 지정 봇부터 플레이어 직전까지 순차 진행
+     * ==============================================================================
+     * @param {number} startBotId 시작 봇 ID (1: 하가, 2: 대면, 3: 상가)
+     * @param {boolean} isDealerFirstTurn 첫 선공 딜러 턴 여부 (배패 때 이미 14번째 패를 뽑았으므로 추가 드로우 생략)
      */
-    async runBotTurns() {
+    async runBotTurnSequence(startBotId = 1, isDealerFirstTurn = false) {
         this.isProcessingBotTurns = true;
         this.updateHud();
 
-        const botOrder = [1, 2, 3]; // 하가(1) -> 대면(2) -> 상가(3)
+        let curr = startBotId;
+        let isFirstTurn = isDealerFirstTurn;
 
-        for (const botId of botOrder) {
-            const meldInterrupted = await this.executeBotTurn(botId);
+        while (curr !== 0) {
+            const meldInterrupted = await this.executeBotTurn(curr, isFirstTurn);
+            isFirstTurn = false; // 첫 딜러 턴 플래그는 1회만 적용
+
             if (this.checkGameEnded()) return;
 
-            // 만약 플레이어가 중간에 치/펑/깡을 선언했다면 봇 루프를 탈출하고 플레이어 턴으로 전환!
+            // 플레이어가 치/펑/깡/론으로 턴을 가로챈 경우 루프 탈출
             if (meldInterrupted) {
                 this.isProcessingBotTurns = false;
                 this.updateHud();
                 return;
             }
+
+            curr = (curr + 1) % 4;
         }
 
         // 3명의 봇 턴이 무사히 끝나면 플레이어(0) 턴 복귀
@@ -1167,7 +1103,7 @@ class MahjongApp {
             return;
         }
 
-        // 플레이어 자동 쯔모
+        // 플레이어 자동 쯔모 드로우
         const playerDrawn = this.engine.drawTileForPlayer(0);
         this.audio.playTileClack();
         this.renderTsumoSlot(true);
@@ -1188,30 +1124,39 @@ class MahjongApp {
         this.updateHud();
     }
 
+    async runBotTurns() {
+        await this.runBotTurnSequence(1, false);
+    }
+
     /**
-     * 단일 AI 봇 턴 실행
-     * @returns {Promise<boolean>} 플레이어가 울기(치/펑/깡)하여 턴을 가로챘다면 true 반환
+     * 단일 AI 봇 턴 실행 (휴리스틱 판단에 따른 고립 자패 / 1, 9 요구패 우선 타패)
+     * @returns {Promise<boolean>} 플레이어가 울기(치/펑/깡/론)하여 턴을 가로챘다면 true 반환
      */
-    async executeBotTurn(botId) {
+    async executeBotTurn(botId, isDealerFirstTurn = false) {
         this.engine.currentTurn = botId;
         this.updateTurnIndicators(botId);
         const bot = this.engine.players[botId];
-
-        this.dom.handGuideMsg.textContent = `${bot.name}의 턴: 패를 뽑는 중...`;
-        await this.sleep(450);
 
         if (this.engine.wall.length === 0) {
             this.handleDrawGame();
             return false;
         }
 
-        // 봇 드로우
-        this.engine.drawTileForPlayer(botId);
-        this.updateHud();
-        await this.sleep(450);
+        if (isDealerFirstTurn) {
+            this.dom.handGuideMsg.textContent = `${bot.name} (親 선공): 첫 타패를 생각하는 중...`;
+            await this.sleep(600);
+        } else {
+            this.dom.handGuideMsg.textContent = `${bot.name}의 턴: 패를 뽑는 중...`;
+            await this.sleep(400);
 
-        // 봇 타패
-        const discarded = this.engine.discardRandomTileForBot(botId);
+            // 봇 드로우
+            this.engine.drawTileForPlayer(botId);
+            this.updateHud();
+            await this.sleep(400);
+        }
+
+        // ★ 기초 AI 휴리스틱 타패: 고립 자패 -> 고립 1/9 요구패 -> 2/8 -> 3~7 순으로 지능적 버림
+        const discarded = this.engine.discardHeuristicTileForBot(botId);
         if (!discarded) return false;
 
         this.audio.playTileClack();
@@ -1220,7 +1165,7 @@ class MahjongApp {
         this.dom.handGuideMsg.textContent = `${bot.name}이(가) [${discarded.name}]을(를) 버렸습니다.`;
 
         // ======================================================================
-        // ★ 핵심: 플레이어의 치/펑/깡/론 인터랙션 검사 및 팝업
+        // 플레이어의 치/펑/깡/론 인터랙션 검사 및 팝업
         // ======================================================================
         const player = this.engine.players[0];
         const chiOptions = (botId === 3) ? this.engine.checkChi(discarded, player.hand) : []; // 치는 상가(3)에게만 가능
@@ -1248,7 +1193,7 @@ class MahjongApp {
             if (userDecision && userDecision.action !== 'skip') {
                 // 유저가 치, 펑, 깡, 론 중 하나를 선택함!
                 if (userDecision.action === 'ron') {
-                    this.triggerVictory('ron', discarded, bot.name);
+                    this.triggerVictory('ron', discarded, bot.name, null, botId);
                     return true;
                 }
 
@@ -1460,7 +1405,7 @@ class MahjongApp {
 
         if (userDecision && userDecision.action !== 'skip') {
             if (userDecision.action === 'ron') {
-                this.triggerVictory('ron', simDiscard, '상가 (VIP Bot 3)', 'ron');
+                this.triggerVictory('ron', simDiscard, '상가 (VIP Bot 3)', 'ron', 3);
                 return;
             }
 
@@ -1542,7 +1487,7 @@ class MahjongApp {
     /**
      * 승리(론/쯔모 화료) 축하 모달 팝업 및 화려한 카지노 정산 영수증 렌더링
      */
-    triggerVictory(type, winningTile, targetPlayerName = '', demoScenario = null) {
+    triggerVictory(type, winningTile, targetPlayerName = '', demoScenario = null, fromPlayerId = null) {
         this.audio.playVictoryFanfare();
         this.audio.playCoinSound();
         const player = this.engine.players[0];
@@ -1566,18 +1511,36 @@ class MahjongApp {
         // 2. 도라 판수 (론 시연 시 도라 2판 보너스)
         const doraCount = (demoScenario === 'ron' || type === 'ron') ? 2 : 0;
 
-        // 3. 족보 및 점수 공식 엔진 실행
+        // 3. 수학적 족보 판별 엔진 실행 (js/yaku-engine.js 연동)
+        const roundInfo = this.engine.getRoundInfo();
+        const roundWind = roundInfo.roundWind || 'east';
+        const seatWind = player.wind || 'east';
+
         const yakuResult = this.engine.calculateYakuAndScore(
             allWinningTiles,
             winningTile,
             type,
             player.melds,
-            true, // player is Dealer (東家)
-            doraCount
+            (player.wind === '東' || this.engine.dealerIndex === 0), // 친(東家) 여부 판정
+            doraCount,
+            roundWind,
+            seatWind
         );
 
-        // 점수 획득 반영
-        player.chips += yakuResult.totalPoints;
+        // ★ 결과 창(영수증)이 떴을 때는 바로 칩을 증감시키지 않고,
+        // 사용자가 창을 닫을 때 증감되도록 정산 대기 데이터로 보관!
+        this.lastWinData = {
+            type,
+            winType: type,
+            winningTile,
+            targetPlayerName,
+            demoScenario,
+            fromPlayerId: fromPlayerId !== null ? fromPlayerId : (type === 'ron' ? 3 : null),
+            winnerId: 0,
+            yakuResult,
+            totalPoints: yakuResult.totalPoints,
+            splitAmount: yakuResult.paymentInfo.splitAmount
+        };
 
         // 4. 영수증 상단 헤더 메타데이터 채우기
         const now = new Date();
@@ -1586,7 +1549,10 @@ class MahjongApp {
 
         if (this.dom.receiptDate) this.dom.receiptDate.textContent = dateStr;
         if (this.dom.receiptSerial) this.dom.receiptSerial.textContent = serialStr;
-        if (this.dom.receiptWinnerName) this.dom.receiptWinnerName.textContent = '東家 High Roller Player (친/親)';
+        if (this.dom.receiptWinnerName) {
+            const isDealer = (player.wind === '東');
+            this.dom.receiptWinnerName.textContent = `${player.wind}家 High Roller Player (${isDealer ? '친/親' : '자/子'})`;
+        }
 
         // 5. 화료 형태 배지 및 승리자 문구
         if (type === 'ron') {
@@ -1614,7 +1580,9 @@ class MahjongApp {
             sortedWinningTiles.forEach(tile => {
                 const isAgari = (winningTile && tile.uid === winningTile.uid);
                 const tileEl = document.createElement('div');
-                tileEl.className = `mahjong-tile ${tile.subClass} ${isAgari ? 'is-winning-agari' : ''}`;
+                const typeClass = tile.type ? `type-${tile.type}` : '';
+                const subClass = tile.subClass ? tile.subClass : '';
+                tileEl.className = `mahjong-tile ${typeClass} ${subClass} ${isAgari ? 'is-winning-agari' : ''}`.trim();
                 tileEl.title = isAgari ? `${tile.name} (화료 결정타 패!)` : tile.name;
                 tileEl.innerHTML = `
                     <div class="tile-corner-label">${tile.corner}</div>
@@ -1685,6 +1653,112 @@ class MahjongApp {
         this.dom.winModal.classList.remove('hidden');
     }
 
+    /**
+     * 라운드 진행 및 친(딜러) 변경에 따른 4인의 바람 태그 및 라운드 표시 갱신
+     */
+    updateSeatDisplay() {
+        const roundInfo = this.engine.getRoundInfo();
+        const p = this.engine.players;
+
+        // 상단 헤더 및 중앙 나침반 라운드명
+        if (this.dom.roundDisplay) this.dom.roundDisplay.textContent = roundInfo.roundName;
+        if (this.dom.compassRoundTag) this.dom.compassRoundTag.textContent = roundInfo.compassTag;
+
+        // 플레이어 좌석 뱃지
+        if (this.dom.seatPlayerBadge) {
+            const isDealer = (p[0].wind === '東');
+            this.dom.seatPlayerBadge.textContent = `${p[0].wind}家 (나)${isDealer ? ' [親]' : ' [子]'}`;
+        }
+
+        // 봇들의 바람 태그
+        if (this.dom.botWindShimocha) this.dom.botWindShimocha.textContent = p[1].wind;
+        if (this.dom.botWindToimen) this.dom.botWindToimen.textContent = p[2].wind;
+        if (this.dom.botWindKamicha) this.dom.botWindKamicha.textContent = p[3].wind;
+
+        // River 구역 오너명
+        if (this.dom.riverNamePlayer) this.dom.riverNamePlayer.textContent = `나 (${p[0].wind}家) 버림패`;
+        if (this.dom.riverNameShimocha) this.dom.riverNameShimocha.textContent = `하가 (${p[1].wind}家) 버림패`;
+        if (this.dom.riverNameToimen) this.dom.riverNameToimen.textContent = `대면 (${p[2].wind}家) 버림패`;
+        if (this.dom.riverNameKamicha) this.dom.riverNameKamicha.textContent = `상가 (${p[3].wind}家) 버림패`;
+    }
+
+    /**
+     * 플레이어 및 3인 봇의 칩 잔액 UI 갱신 및 시각적 애니메이션 적용
+     * @param {Object} changes 플레이어별 칩 변동량 { 0: +12000, 3: -12000 }
+     */
+    updateChipsDisplay(changes = null) {
+        const p = this.engine.players;
+
+        const updateSingleChip = (el, amount, change, isPlayer = false) => {
+            if (!el) return;
+            el.textContent = isPlayer ? `${amount.toLocaleString()} pts` : amount.toLocaleString();
+
+            if (change) {
+                const animClass = (change > 0) ? 'chip-pulsing-gain' : 'chip-pulsing-loss';
+                el.classList.remove('chip-pulsing-gain', 'chip-pulsing-loss');
+                void el.offsetWidth; // 리플로우 강제 트리거
+                el.classList.add(animClass);
+                setTimeout(() => { el.classList.remove(animClass); }, 1300);
+            }
+        };
+
+        const pChange = changes ? changes[0] : null;
+        const b1Change = changes ? changes[1] : null;
+        const b2Change = changes ? changes[2] : null;
+        const b3Change = changes ? changes[3] : null;
+
+        updateSingleChip(this.dom.playerChips, p[0].chips, pChange, true);
+        updateSingleChip(this.dom.botChipsShimocha, p[1].chips, b1Change, false);
+        updateSingleChip(this.dom.botChipsToimen, p[2].chips, b2Change, false);
+        updateSingleChip(this.dom.botChipsKamicha, p[3].chips, b3Change, false);
+    }
+
+    /**
+     * ==============================================================================
+     * ★ 점수 정산 및 라운드 진행 (Score Settlement & Round Progression)
+     * - 결과 창(영수증)을 닫으면 25,000점 칩에서 승리/패배 점수 증감 반영
+     * - 친(딜러)이 다음 사람에게 넘어가고 '동 2국', '동 3국'으로 라운드 초기화
+     * ==============================================================================
+     */
+    async handleRoundSettlementAndNext() {
+        this.isProcessingBotTurns = false;
+
+        // 1. 점수 정산 (칩 증감 반영)
+        if (this.lastWinData) {
+            const settleResult = this.engine.settleScores(this.lastWinData);
+            this.audio.playCoinSound();
+            this.updateChipsDisplay(settleResult.changes);
+            this.lastWinData = null;
+        }
+
+        // 2. 친(딜러) 이전 및 다음 국('동 2국', '동 3국' 등) 시작
+        const newRoundData = this.engine.advanceToNextRound();
+
+        // 3. UI 갱신 (헤더, 펠트, 버림패, 봇 손패, 타일 랙)
+        this.renderPlayerHand();
+        this.renderPlayerMelds();
+        this.renderTsumoSlot(this.engine.dealerIndex === 0);
+        this.renderBotHands();
+        this.renderAllRivers();
+        this.updateSeatDisplay();
+        this.updateTurnIndicators(this.engine.dealerIndex);
+        this.updateHud();
+
+        // 4. 새 라운드 시작 가이드 및 턴 루프 실행
+        const dealer = newRoundData.roundInfo.dealerPlayer;
+        if (this.engine.dealerIndex === 0) {
+            // 플레이어가 친(딜러)인 경우
+            this.dom.handGuideMsg.textContent = `${newRoundData.roundInfo.roundName} 시작! 내가 친(親)입니다. 14장의 패 중 버릴 패 1장을 클릭하세요.`;
+            this.isProcessingBotTurns = false;
+            this.updateHud();
+        } else {
+            // 봇이 친(딜러)인 경우: 딜러 봇부터 턴 시작!
+            this.dom.handGuideMsg.textContent = `${newRoundData.roundInfo.roundName} 시작! 친(親): ${dealer.name}의 선공입니다.`;
+            await this.sleep(700);
+            await this.runBotTurnSequence(this.engine.dealerIndex, true);
+        }
+    }
+
     checkGameEnded() {
         if (this.engine.wall.length === 0) {
             this.handleDrawGame();
@@ -1703,17 +1777,20 @@ class MahjongApp {
     handleNewDeal() {
         this.isProcessingBotTurns = false;
         this.latestDiscardUid = null;
-        this.engine.startNewGame();
+        this.lastWinData = null;
+        this.engine.startNewGame(true); // 완전 초기화 (동 1국, 25,000점)
 
         this.renderPlayerHand();
         this.renderPlayerMelds();
         this.renderTsumoSlot(true);
         this.renderBotHands();
         this.renderAllRivers();
+        this.updateSeatDisplay();
+        this.updateChipsDisplay();
         this.updateTurnIndicators(0);
         this.updateHud();
 
-        this.dom.handGuideMsg.textContent = '4인 대국 시작! 14장의 패 중 버릴 패 1장을 클릭하세요.';
+        this.dom.handGuideMsg.textContent = '동 1국 대국 시작! 14장의 패 중 버릴 패 1장을 클릭하세요.';
     }
 
     handleSortHand() {
