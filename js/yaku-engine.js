@@ -269,7 +269,7 @@ class YakuEngine {
      * [족보 2] 리치 (立直 / Riichi) - 1판
      */
     static checkRiichi(ctx) {
-        return ctx.isMenzen && (ctx.isRiichi === true || ctx.isMenzenTenpai === true);
+        return ctx.isMenzen && Boolean(ctx.isRiichi);
     }
 
     /**

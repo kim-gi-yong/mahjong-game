@@ -115,6 +115,22 @@
                         </div>
                     </div>
 
+                    <!-- [중앙 공탁 리치봉 (1,000점 점수봉) 영역] -->
+                    <div class="riichi-pot-zone hidden" id="riichiPotZone">
+                        <div class="riichi-stick-wrapper">
+                            <div class="riichi-stick" id="riichiStick" title="1,000점 공탁 리치봉">
+                                <span class="stick-cap stick-cap-left"></span>
+                                <span class="stick-ruby-dot"></span>
+                                <span class="stick-cap stick-cap-right"></span>
+                            </div>
+                        </div>
+                        <div class="riichi-pot-info">
+                            <span class="riichi-pot-badge">RIICHI POT</span>
+                            <span class="riichi-pot-val gold-glow-text" id="riichiPotVal">1,000점</span>
+                            <span class="riichi-pot-desc" id="riichiPotDesc">(Player 리치 공탁)</span>
+                        </div>
+                    </div>
+
                     <!-- 중앙 십자 코어 라인 (상가 버림패 - 턴 나침반 HUD - 하가 버림패) -->
                     <div class="river-middle-cross">
                         <!-- 2. 상가(Kamicha) 버림패 (좌측) -->
@@ -182,10 +198,17 @@
                     <div class="player-profile">
                         <span class="seat-badge">東家 (나)</span>
                         <span class="player-name">High Roller Player</span>
+                        <span class="player-riichi-badge hidden" id="playerRiichiBadge">⚡ 立直 RIICHI</span>
                     </div>
                     <div class="hand-guide-msg" id="handGuideMsg">
                         13장의 패가 정상 분배되었습니다.
                     </div>
+                    <!-- 텐파이(Tenpai) 시 강렬하게 출현하는 리치 선언 버튼 -->
+                    <button class="btn-declare-riichi hidden" id="btnDeclareRiichi" title="1,000점을 공탁하고 리치(立直)를 선언합니다">
+                        <span class="riichi-fire-icon">⚡</span>
+                        <span class="riichi-btn-kanji">立直</span>
+                        <span class="riichi-btn-text">리치 선언 (-1,000)</span>
+                    </button>
                     <div class="hand-meta">
                         <span id="handCountBadge">손패: 14장</span>
                     </div>
@@ -235,7 +258,11 @@
                         <span class="btn-icon">📜</span>
                         <span class="btn-text">136장 전체 패산 검사</span>
                     </button>
-                    <!-- 울기/론/쯔모 테스트 시연용 원클릭 버튼 그룹 -->
+                    <!-- 울기/론/쯔모/리치 테스트 시연용 원클릭 버튼 그룹 -->
+                    <button class="casino-btn btn-outline" id="btnTestRiichi" title="리치(Riichi) 선언 가능한 14장 텐파이 상태를 즉시 세팅합니다">
+                        <span class="btn-icon">⚡</span>
+                        <span class="btn-text">리치 텐파이 세팅</span>
+                    </button>
                     <button class="casino-btn btn-test-meld" id="btnTestRon" title="론(Ron) 만관 화료 시나리오를 즉시 시연합니다">
                         <span class="btn-icon">⚡</span>
                         <span class="btn-text">론(Ron) 만관 시연</span>
@@ -429,6 +456,7 @@
     <audio id="sound-discard" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
     <audio id="sound-draw" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"></audio>
     <audio id="sound-win" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3"></audio>
+    <audio id="sound-riichi" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3"></audio>
 
     <!-- JavaScript 파일 연결 : 수학적 족보 판별 엔진, AI 봇 두뇌, 메인 게임 루프 -->
     <script src="js/yaku-engine.js"></script>

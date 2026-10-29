@@ -146,6 +146,53 @@ class MahjongAudioSystem {
     }
 
     /**
+     * 4. 리치 선언 효과음 (sound-riichi) : 텐파이를 알리는 맑고 긴장감 넘치는 챠링- 타격 효과음
+     */
+    playRiichiSound() {
+        if (!this.enabled) return;
+        this.playAudioElement('sound-riichi');
+        this.playRiichiSynthesized();
+    }
+
+    /**
+     * 리치 선언 신시사이저 합성음 (점수봉을 던지는 둔탁한 타격음 + 4단 긴장감 상승 차임)
+     */
+    playRiichiSynthesized() {
+        if (!this.enabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+
+        // 1. 점수봉이 탁자에 떨어지는 맑고 단단한 상아 봉 타격음
+        const stickOsc = this.ctx.createOscillator();
+        const stickGain = this.ctx.createGain();
+        stickOsc.type = 'triangle';
+        stickOsc.frequency.setValueAtTime(1800, now);
+        stickOsc.frequency.exponentialRampToValueAtTime(420, now + 0.05);
+        stickGain.gain.setValueAtTime(0.5, now);
+        stickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+        stickOsc.connect(stickGain);
+        stickGain.connect(this.ctx.destination);
+        stickOsc.start(now);
+        stickOsc.stop(now + 0.08);
+
+        // 2. 리치 긴장감 및 결의를 알리는 4단 상승 차임음 (G4 -> C5 -> E5 -> G5)
+        const notes = [392.00, 523.25, 659.25, 783.99];
+        notes.forEach((freq, idx) => {
+            const noteStart = now + 0.04 + idx * 0.09;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, noteStart);
+            gain.gain.setValueAtTime(0.35, noteStart);
+            gain.gain.exponentialRampToValueAtTime(0.001, noteStart + 0.55);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(noteStart);
+            osc.stop(noteStart + 0.6);
+        });
+    }
+
+    /**
      * 드로우(스윽 마찰음) 신시사이저 합성음
      */
     playTileDrawSynthesized() {
@@ -274,12 +321,14 @@ class MahjongEngine {
         this.roundIndex = 0; // 0: 동1국, 1: 동2국, 2: 동3국, 3: 동4국, 4: 남1국 ...
         this.dealerIndex = 0; // 딜러(친/오야): 0 (나), 1 (하가), 2 (대면), 3 (상가)
         
+        this.potChips = 0; // 중앙 공탁금 (1,000점 리치봉 공탁 누적액)
+        
         // 4인 플레이어 데이터 모델 (0: 나/東, 1: 하가/南, 2: 대면/西, 3: 상가/北)
         this.players = [
-            { id: 0, name: '나 (Player)', wind: '東', position: 'player', hand: [], tsumoTile: null, melds: [], discards: [], chips: 25000, isBot: false },
-            { id: 1, name: '하가 (VIP Bot 1)', wind: '南', position: 'shimocha', hand: [], tsumoTile: null, melds: [], discards: [], chips: 25000, isBot: true },
-            { id: 2, name: '대면 (VIP Bot 2)', wind: '西', position: 'toimen', hand: [], tsumoTile: null, melds: [], discards: [], chips: 25000, isBot: true },
-            { id: 3, name: '상가 (VIP Bot 3)', wind: '北', position: 'kamicha', hand: [], tsumoTile: null, melds: [], discards: [], chips: 25000, isBot: true }
+            { id: 0, name: '나 (Player)', wind: '東', position: 'player', hand: [], tsumoTile: null, melds: [], discards: [], chips: 25000, isBot: false, isRiichi: false },
+            { id: 1, name: '하가 (VIP Bot 1)', wind: '南', position: 'shimocha', hand: [], tsumoTile: null, melds: [], discards: [], chips: 25000, isBot: true, isRiichi: false },
+            { id: 2, name: '대면 (VIP Bot 2)', wind: '西', position: 'toimen', hand: [], tsumoTile: null, melds: [], discards: [], chips: 25000, isBot: true, isRiichi: false },
+            { id: 3, name: '상가 (VIP Bot 3)', wind: '北', position: 'kamicha', hand: [], tsumoTile: null, melds: [], discards: [], chips: 25000, isBot: true, isRiichi: false }
         ];
 
         this.currentTurn = 0;
@@ -354,6 +403,7 @@ class MahjongEngine {
         if (resetScores) {
             this.roundIndex = 0;
             this.dealerIndex = 0;
+            this.potChips = 0;
             this.players.forEach(p => { p.chips = 25000; });
         }
 
@@ -368,12 +418,13 @@ class MahjongEngine {
             ? YakuEngine.getDoraTarget(this.doraIndicator)
             : null;
 
-        // 4명 모두 손패, 쯔모패, 공개패(Melds), 버림패 초기화
+        // 4명 모두 손패, 쯔모패, 공개패(Melds), 버림패, 리치 상태 초기화
         this.players.forEach(p => {
             p.hand = [];
             p.tsumoTile = null;
             p.melds = [];
             p.discards = [];
+            p.isRiichi = false;
         });
 
         // 4명에게 각 13장씩 배패 (52장 소진)
@@ -530,10 +581,20 @@ class MahjongEngine {
             changes[winner.id] = totalGained;
         }
 
+        // 공탁 리치봉 획득 처리 (테이블 중앙에 공탁금이 있는 경우 승리자가 전액 회수)
+        let potWon = 0;
+        if (this.potChips > 0) {
+            potWon = this.potChips;
+            winner.chips += potWon;
+            changes[winner.id] = (changes[winner.id] || 0) + potWon;
+            this.potChips = 0;
+        }
+
         return {
             winType,
             winnerId: winner.id,
-            changes
+            changes,
+            potWon
         };
     }
 
@@ -711,9 +772,9 @@ class MahjongEngine {
             if (pairMatches.length >= 2) {
                 // 머리 2장 제거 후 남은 3k장이 멘츠로 완벽히 분해되는지 검사
                 const remaining = [...tiles];
-                const idx1 = remaining.findIndex(t => t.uid === pairMatches[0].uid);
+                const idx1 = remaining.indexOf(pairMatches[0]);
                 remaining.splice(idx1, 1);
-                const idx2 = remaining.findIndex(t => t.uid === pairMatches[1].uid);
+                const idx2 = remaining.indexOf(pairMatches[1]);
                 remaining.splice(idx2, 1);
 
                 if (this.canDecomposeIntoMentsu(remaining)) {
@@ -753,11 +814,11 @@ class MahjongEngine {
             if (next1 && next2) {
                 const rest = [...tiles];
                 // first, next1, next2 제거
-                const idx0 = rest.findIndex(t => t.uid === first.uid);
+                const idx0 = rest.indexOf(first);
                 rest.splice(idx0, 1);
-                const idx1 = rest.findIndex(t => t.uid === next1.uid);
+                const idx1 = rest.indexOf(next1);
                 rest.splice(idx1, 1);
-                const idx2 = rest.findIndex(t => t.uid === next2.uid);
+                const idx2 = rest.indexOf(next2);
                 rest.splice(idx2, 1);
 
                 if (this.canDecomposeIntoMentsu(rest)) return true;
@@ -765,6 +826,85 @@ class MahjongEngine {
         }
 
         return false;
+    }
+
+    // ==========================================================================
+    // 텐파이(Tenpai) 및 리치(Riichi) 판정 알고리즘
+    // ==========================================================================
+
+    /**
+     * 13장의 손패에 대해 화료(승리)를 완성할 수 있는 34종의 대기패(Wait Tiles) 목록 탐색
+     * @param {Array} tiles13 13장의 순수 손패 (또는 3k+1장 형태)
+     * @param {number} meldsCount 부로(공개패) 세트 수
+     * @returns {Array} 성립 가능한 타일 스펙 객체 목록
+     */
+    getTenpaiWaits(tiles13, meldsCount = 0) {
+        if (!tiles13 || tiles13.length === 0) return [];
+        if (tiles13.length % 3 !== 1) return [];
+
+        const waits = [];
+        for (const spec of MAHJONG_TILE_SPECS) {
+            const testTile = {
+                uid: `sim_wait_${spec.type}_${spec.value}`,
+                type: spec.type,
+                value: spec.value,
+                name: spec.name,
+                corner: spec.corner,
+                unicode: spec.unicode,
+                sortOrder: spec.sortOrder,
+                subClass: spec.subClass || `type-${spec.type}`
+            };
+            if (this.checkWin([...tiles13, testTile], meldsCount)) {
+                waits.push(spec);
+            }
+        }
+        return waits;
+    }
+
+    /**
+     * 14장의 패(손패 13장 + 쯔모패 1장) 중, 어떤 패를 버렸을 때 텐파이(Tenpai)가 유지되는지 검사
+     * 리치 선언 자격: 멘젠(부로 0), 미선언 상태, 보유 칩 1,000점 이상, 유효 타패 존재
+     * @param {number} playerId 플레이어 ID (기본 0: 나)
+     * @returns {Array} 버릴 수 있는 타일 및 대기패 정보 [{ tile, waits }]
+     */
+    getRiichiDiscardOptions(playerId = 0) {
+        const player = this.players[playerId];
+        if (!player || player.melds.length > 0 || player.isRiichi || player.chips < 1000) {
+            return [];
+        }
+
+        const all14 = [...player.hand];
+        if (player.tsumoTile) all14.push(player.tsumoTile);
+        if (all14.length % 3 !== 2) return [];
+
+        const validDiscards = [];
+        const testedKeys = new Map();
+
+        for (let i = 0; i < all14.length; i++) {
+            const discardCandidate = all14[i];
+            const key = `${discardCandidate.type}_${discardCandidate.value}`;
+
+            if (testedKeys.has(key)) {
+                const prevWaits = testedKeys.get(key);
+                if (prevWaits && prevWaits.length > 0) {
+                    validDiscards.push({ tile: discardCandidate, waits: prevWaits });
+                }
+                continue;
+            }
+
+            const remaining13 = all14.filter((_, idx) => idx !== i);
+            const waits = this.getTenpaiWaits(remaining13, 0);
+            testedKeys.set(key, waits);
+
+            if (waits.length > 0) {
+                validDiscards.push({
+                    tile: discardCandidate,
+                    waits
+                });
+            }
+        }
+
+        return validDiscards;
     }
 
     // ==========================================================================
@@ -787,8 +927,9 @@ class MahjongEngine {
      * @param {string} roundWind 현재 국 바람 ('east', 'south' 등)
      * @param {string} seatWind 플레이어 바람 ('east', 'south' 등)
      * @param {Array} doraIndicators 도라 표시패 목록 (미전달 시 엔진의 doraIndicator 사용)
+     * @param {boolean} isRiichi 리치 선언 여부 (기본 false)
      */
-    calculateYakuAndScore(allTiles, winningTile, winType, melds = [], isDealer = true, customDora = 0, roundWind = 'east', seatWind = 'east', doraIndicators = null) {
+    calculateYakuAndScore(allTiles, winningTile, winType, melds = [], isDealer = true, customDora = 0, roundWind = 'east', seatWind = 'east', doraIndicators = null, isRiichi = false) {
         const indicators = doraIndicators || (this.doraIndicator ? [this.doraIndicator] : []);
         if (typeof YakuEngine !== 'undefined' && YakuEngine.evaluateHand) {
             return YakuEngine.evaluateHand({
@@ -799,7 +940,7 @@ class MahjongEngine {
                 isDealer,
                 roundWind,
                 seatWind,
-                isRiichi: (melds.length === 0),
+                isRiichi: Boolean(isRiichi),
                 doraIndicators: indicators,
                 customDora
             });
@@ -923,6 +1064,14 @@ class MahjongApp {
             doraIndicatorName: document.getElementById('doraIndicatorName'),
             doraTargetName: document.getElementById('doraTargetName'),
 
+            // 중앙 공탁 리치봉 및 리치 선언 UI 엘리먼트
+            riichiPotZone: document.getElementById('riichiPotZone'),
+            riichiStick: document.getElementById('riichiStick'),
+            riichiPotVal: document.getElementById('riichiPotVal'),
+            riichiPotDesc: document.getElementById('riichiPotDesc'),
+            playerRiichiBadge: document.getElementById('playerRiichiBadge'),
+            btnDeclareRiichi: document.getElementById('btnDeclareRiichi'),
+
             // 승리 축하 모달 & 카지노 정산 영수증 엘리먼트
             winModal: document.getElementById('winModal'),
             winTitle: document.getElementById('winTitle'),
@@ -947,6 +1096,7 @@ class MahjongApp {
             btnSortHand: document.getElementById('btnSortHand'),
             btnDrawTile: document.getElementById('btnDrawTile'),
             btnViewDeck: document.getElementById('btnViewDeck'),
+            btnTestRiichi: document.getElementById('btnTestRiichi'),
             btnTestRon: document.getElementById('btnTestRon'),
             btnTestTsumo: document.getElementById('btnTestTsumo'),
             btnTestMeld: document.getElementById('btnTestMeld'),
@@ -980,6 +1130,20 @@ class MahjongApp {
             if (this.isProcessingBotTurns) return;
             this.handleManualDraw();
         });
+
+        // [리치(立直) 선언] 버튼 클릭
+        if (this.dom.btnDeclareRiichi) {
+            this.dom.btnDeclareRiichi.addEventListener('click', () => {
+                this.handleDeclareRiichi();
+            });
+        }
+
+        // [리치 텐파이 세팅] 테스트 시연 버튼
+        if (this.dom.btnTestRiichi) {
+            this.dom.btnTestRiichi.addEventListener('click', () => {
+                this.setupTestRiichiScenario();
+            });
+        }
 
         // 론(Ron) 만관 시연 세팅 버튼
         if (this.dom.btnTestRon) {
@@ -1072,12 +1236,24 @@ class MahjongApp {
         }
 
         const player = this.engine.players[0];
+
+        // 리치(Riichi) 선언 상태에서는 플레이어가 수동으로 패를 변경할 수 없음 (자동 쯔모기리)
+        if (player.isRiichi) {
+            this.dom.handGuideMsg.textContent = '⚡ 리치(立直) 상태입니다! 손패를 바꿀 수 없으며 뽑은 패는 자동으로 버려집니다.';
+            return;
+        }
+
         const activeHandCount = player.hand.length + (player.tsumoTile ? 1 : 0);
 
         // 울기(치/펑) 후에는 손패가 11장, 8장 등으로 줄어들지만 (activeHandCount % 3 === 2) 상태일 때 타패 가능
         if (activeHandCount % 3 !== 2) {
             this.dom.handGuideMsg.textContent = '현재 버릴 수 있는 턴 상태가 아닙니다!';
             return;
+        }
+
+        // 타패 시 리치 선언 버튼 숨김
+        if (this.dom.btnDeclareRiichi) {
+            this.dom.btnDeclareRiichi.classList.add('hidden');
         }
 
         // 1. 타패 실행
@@ -1149,8 +1325,26 @@ class MahjongApp {
 
         if (isTsumoWin) {
             this.promptTsumoWin(playerDrawn);
+        } else if (player.isRiichi) {
+            // ★ 리치(Riichi) 상태: 수동 패 변경 불가 -> 뽑은 패 무조건 자동 버림(자동 쯔모기리)
+            this.dom.handGuideMsg.textContent = `⚡ [리치 자동 쯔모기리] [${playerDrawn.name}] 쯔모 ➔ 화료패가 아니므로 즉시 버립니다.`;
+            await this.sleep(600);
+
+            this.audio.playDiscardSound();
+            const discarded = this.engine.discardTile(0, playerDrawn.uid);
+            this.latestDiscardUid = discarded.uid;
+
+            this.renderTsumoSlot();
+            this.renderAllRivers();
+            this.updateHud();
+
+            // 곧바로 다음 상대 턴으로 진행
+            await this.runBotTurnSequence(1, false);
+            return;
         } else {
             this.dom.handGuideMsg.textContent = `[${playerDrawn.name}] 쯔모! 버릴 패 1장을 클릭하세요.`;
+            // 텐파이 상태인지 매 턴 검사하여 [리치 선언] 버튼 노출
+            this.checkAndPromptRiichi();
         }
 
         this.isProcessingBotTurns = false;
@@ -1202,9 +1396,10 @@ class MahjongApp {
         // 플레이어의 치/펑/깡/론 인터랙션 검사 및 팝업
         // ======================================================================
         const player = this.engine.players[0];
-        const chiOptions = (botId === 3) ? this.engine.checkChi(discarded, player.hand) : []; // 치는 상가(3)에게만 가능
-        const ponOption = this.engine.checkPon(discarded, player.hand);
-        const kanOption = this.engine.checkKan(discarded, player.hand);
+        // 리치(Riichi) 상태에서는 치/펑/깡 불가(멘젠 유지 및 손패 고정), 오직 론(Ron)만 가능!
+        const chiOptions = (!player.isRiichi && botId === 3) ? this.engine.checkChi(discarded, player.hand) : [];
+        const ponOption = !player.isRiichi ? this.engine.checkPon(discarded, player.hand) : null;
+        const kanOption = !player.isRiichi ? this.engine.checkKan(discarded, player.hand) : null;
         
         // 론 화료 검사 (버려진 패를 합쳐 14장 완성형인지)
         const allTilesWithDiscard = [...player.hand, discarded];
@@ -1370,10 +1565,221 @@ class MahjongApp {
     }
 
     /**
+     * 리치 공탁금 영역 및 플레이어 리치 뱃지 UI 갱신
+     */
+    updateRiichiUi() {
+        const player = this.engine.players[0];
+        const potChips = this.engine.potChips || 0;
+
+        // 1. 테이블 중앙 리치 공탁금 영역 (1,000점 점수봉)
+        if (this.dom.riichiPotZone) {
+            if (potChips > 0) {
+                this.dom.riichiPotZone.classList.remove('hidden');
+                if (this.dom.riichiPotVal) {
+                    this.dom.riichiPotVal.textContent = `${potChips.toLocaleString()}점`;
+                }
+                if (this.dom.riichiPotDesc) {
+                    this.dom.riichiPotDesc.textContent = player.isRiichi ? '(Player 리치 공탁)' : '(리치 공탁금)';
+                }
+            } else {
+                this.dom.riichiPotZone.classList.add('hidden');
+            }
+        }
+
+        // 2. 플레이어 정보 바 내 리치 뱃지
+        if (this.dom.playerRiichiBadge) {
+            if (player.isRiichi) {
+                this.dom.playerRiichiBadge.classList.remove('hidden');
+            } else {
+                this.dom.playerRiichiBadge.classList.add('hidden');
+            }
+        }
+    }
+
+    /**
+     * 매 턴 플레이어의 패가 텐파이(Tenpai) 상태인지 검사하고 [리치(立直) 선언] 버튼 노출
+     */
+    checkAndPromptRiichi() {
+        if (!this.dom.btnDeclareRiichi) return false;
+
+        const player = this.engine.players[0];
+        // 다른 플레이어의 턴이거나 봇 턴 진행 중이면 버튼 숨김
+        if (this.isProcessingBotTurns || this.engine.currentTurn !== 0) {
+            this.dom.btnDeclareRiichi.classList.add('hidden');
+            return false;
+        }
+
+        const activeHandCount = player.hand.length + (player.tsumoTile ? 1 : 0);
+        // 타패 직전의 14장(3k+2) 상태가 아니면 숨김
+        if (activeHandCount % 3 !== 2) {
+            this.dom.btnDeclareRiichi.classList.add('hidden');
+            return false;
+        }
+
+        // 멘젠(공개패 0), 리치 미선언, 칩 1,000점 이상 보유 시 텐파이 검사
+        if (player.melds.length === 0 && !player.isRiichi && player.chips >= 1000) {
+            const discardOptions = this.engine.getRiichiDiscardOptions(0);
+            if (discardOptions.length > 0) {
+                this.dom.btnDeclareRiichi.classList.remove('hidden');
+                const waitsNames = discardOptions[0].waits.map(w => w.name).join(', ');
+                this.dom.btnDeclareRiichi.title = `1,000점 공탁하고 리치 선언! (대기패: ${waitsNames})`;
+                return true;
+            }
+        }
+
+        this.dom.btnDeclareRiichi.classList.add('hidden');
+        return false;
+    }
+
+    /**
+     * [리치(立直) 선언] 버튼 클릭 핸들러
+     * - 1,000점 점수봉을 테이블 중앙에 던지는 시각적 표시
+     * - 텐파이 상태를 알리는 효과음(sound-riichi 및 신시사이저 차임) 재생
+     * - 칩 1,000점 차감 및 공탁금 누적
+     * - 리치 상태 등록 후 자동 쯔모기리(손패 변경 불가) 턴 로직 전환
+     */
+    async handleDeclareRiichi() {
+        const player = this.engine.players[0];
+        if (player.isRiichi || player.chips < 1000 || player.melds.length > 0) return;
+
+        const discardOptions = this.engine.getRiichiDiscardOptions(0);
+        if (discardOptions.length === 0) return;
+
+        // 1. 1,000점 공탁 및 리치 상태 전환
+        player.isRiichi = true;
+        player.chips -= 1000;
+        this.engine.potChips = (this.engine.potChips || 0) + 1000;
+
+        // 2. 텐파이 효과음 재생
+        this.audio.playRiichiSound();
+
+        // 3. UI 갱신 (리치 버튼 숨김, 뱃지 노출, 점수봉 투척 애니메이션)
+        if (this.dom.btnDeclareRiichi) this.dom.btnDeclareRiichi.classList.add('hidden');
+        this.updateRiichiUi();
+
+        if (this.dom.riichiStick) {
+            this.dom.riichiStick.classList.remove('stick-thrown');
+            void this.dom.riichiStick.offsetWidth;
+            this.dom.riichiStick.classList.add('stick-thrown');
+        }
+
+        // 플레이어 칩 -1,000점 애니메이션 반영
+        this.updateChipsDisplay({ 0: -1000 });
+
+        // 버릴 타패 결정: 쯔모패가 텐파이를 유지하면 쯔모패 버림, 아니면 첫 번째 유효 타패
+        const chosenOption = (player.tsumoTile && discardOptions.some(o => o.tile.uid === player.tsumoTile.uid))
+            ? discardOptions.find(o => o.tile.uid === player.tsumoTile.uid)
+            : discardOptions[0];
+        const waitsNames = chosenOption.waits.map(w => w.name).join(', ');
+
+        this.dom.handGuideMsg.textContent = `⚡ [리치(立直) 선언!] 1,000점 공탁 완료! 대기패: [${waitsNames}] ➔ 자동 쯔모기리 상태로 돌입합니다.`;
+
+        // 4. 손패 잠금 스타일 적용 렌더링
+        this.renderPlayerHand();
+        this.renderTsumoSlot();
+
+        await this.sleep(700);
+
+        // 5. 리치 선언 타패 실행
+        const tileToDiscard = chosenOption.tile;
+        this.audio.playDiscardSound();
+        const discarded = this.engine.discardTile(0, tileToDiscard.uid);
+        this.latestDiscardUid = discarded.uid;
+
+        this.renderPlayerHand();
+        this.renderTsumoSlot();
+        this.renderAllRivers();
+        this.updateHud();
+
+        this.dom.handGuideMsg.textContent = `⚡ [${discarded.name}] 버림 (리치 성립)! 대기패 [${waitsNames}] 대기 중... 봇 턴 진행`;
+
+        // 6. 상대 봇 턴 진행
+        await this.runBotTurnSequence(1, false);
+    }
+
+    /**
+     * [시연 0] 리치 선언 가능한 14장 텐파이 손패 즉시 세팅
+     * - 손패: 2만, 3만, 5통, 5통, 3삭, 4삭, 5삭, 6삭, 7삭, 8삭, 발, 발, 발 (13장 텐파이: 1만/4만 대기)
+     * - 쯔모 슬롯: 9만 (잉여패)
+     * - 화면에 강렬한 [리치(立直) 선언] 버튼이 즉시 활성화됩니다!
+     */
+    setupTestRiichiScenario() {
+        if (this.isProcessingBotTurns) return;
+
+        const player = this.engine.players[0];
+        player.melds = [];
+        player.isRiichi = false;
+        player.chips = 25000;
+        this.engine.potChips = 0;
+
+        player.hand = [
+            { uid: `riichi_w2_${Date.now()}`, type: 'wan', value: 2, name: '2만', corner: '2萬', unicode: '\u{1F008}', sortOrder: 102, subClass: 'type-wan' },
+            { uid: `riichi_w3_${Date.now()}`, type: 'wan', value: 3, name: '3만', corner: '3萬', unicode: '\u{1F009}', sortOrder: 103, subClass: 'type-wan' },
+            { uid: `riichi_p5_1_${Date.now()}`, type: 'pin', value: 5, name: '5통', corner: '5筒', unicode: '\u{1F01D}', sortOrder: 205, subClass: 'type-pin' },
+            { uid: `riichi_p5_2_${Date.now()}`, type: 'pin', value: 5, name: '5통', corner: '5筒', unicode: '\u{1F01D}', sortOrder: 205, subClass: 'type-pin' },
+            { uid: `riichi_s3_${Date.now()}`, type: 'sou', value: 3, name: '3삭', corner: '3索', unicode: '\u{1F012}', sortOrder: 303, subClass: 'type-sou' },
+            { uid: `riichi_s4_${Date.now()}`, type: 'sou', value: 4, name: '4삭', corner: '4索', unicode: '\u{1F013}', sortOrder: 304, subClass: 'type-sou' },
+            { uid: `riichi_s5_${Date.now()}`, type: 'sou', value: 5, name: '5삭', corner: '5索', unicode: '\u{1F014}', sortOrder: 305, subClass: 'type-sou' },
+            { uid: `riichi_s6_${Date.now()}`, type: 'sou', value: 6, name: '6삭', corner: '6索', unicode: '\u{1F015}', sortOrder: 306, subClass: 'type-sou' },
+            { uid: `riichi_s7_${Date.now()}`, type: 'sou', value: 7, name: '7삭', corner: '7索', unicode: '\u{1F016}', sortOrder: 307, subClass: 'type-sou' },
+            { uid: `riichi_s8_${Date.now()}`, type: 'sou', value: 8, name: '8삭', corner: '8索', unicode: '\u{1F017}', sortOrder: 308, subClass: 'type-sou' },
+            { uid: `riichi_dg_1_${Date.now()}`, type: 'dragon', value: 'green', name: '발', corner: '發', unicode: '\u{1F005}', sortOrder: 502, subClass: 'tile-dragon-green' },
+            { uid: `riichi_dg_2_${Date.now()}`, type: 'dragon', value: 'green', name: '발', corner: '發', unicode: '\u{1F005}', sortOrder: 502, subClass: 'tile-dragon-green' },
+            { uid: `riichi_dg_3_${Date.now()}`, type: 'dragon', value: 'green', name: '발', corner: '發', unicode: '\u{1F005}', sortOrder: 502, subClass: 'tile-dragon-green' }
+        ];
+
+        const tsumo9Wan = {
+            uid: `riichi_tsumo_w9_${Date.now()}`,
+            type: 'wan',
+            value: 9,
+            name: '9만',
+            corner: '9萬',
+            unicode: '\u{1F00F}',
+            sortOrder: 109,
+            subClass: 'type-wan'
+        };
+        player.tsumoTile = tsumo9Wan;
+
+        const simDoraIndicator = {
+            uid: `dora_ind_p4_${Date.now()}`,
+            type: 'pin',
+            value: 4,
+            name: '4통',
+            corner: '4筒',
+            unicode: '\u{1F01C}',
+            sortOrder: 204,
+            subClass: 'type-pin'
+        };
+        this.engine.doraIndicator = simDoraIndicator;
+        this.engine.doraTarget = (typeof YakuEngine !== 'undefined' && YakuEngine.getDoraTarget)
+            ? YakuEngine.getDoraTarget(simDoraIndicator)
+            : { type: 'pin', value: 5, name: '5통', corner: '5筒' };
+        if (this.engine.deadWall && this.engine.deadWall.length >= 5) {
+            this.engine.deadWall[4] = simDoraIndicator;
+        }
+
+        this.engine.currentTurn = 0;
+        this.renderPlayerHand();
+        this.renderPlayerMelds();
+        this.renderTsumoSlot(true);
+        this.renderDeadWall();
+        this.updateSeatDisplay();
+        this.updateChipsDisplay();
+        this.updateRiichiUi();
+        this.updateTurnIndicators(0);
+        this.updateHud();
+
+        // 텐파이 검사 후 [리치 선언] 버튼 즉시 노출
+        this.checkAndPromptRiichi();
+
+        this.dom.handGuideMsg.textContent = '⚡ [리치 시연] 텐파이 달성! 화면 우측의 강렬한 [리치(立直) 선언] 버튼을 클릭해 보세요!';
+    }
+
+    /**
      * [시연 1] 론(Ron) 만관(滿貫) 화료 시연 세팅
-     * - 손패: 2만, 3만, 5통, 5통, 3삭, 4삭, 5삭, 6삭, 7삭, 8삭, 발, 발, 발 (13장)
-     * - 상가(VIP Bot 3)가 4만을 버려 론 및 치가 성립
-     * - 성립 역: 역패·발(1판) + 리치(1판) + 도라2(2판) = 4판 30부 만관 (12,000점)
+     * - 손패: 2만, 3만, 5통, 5통, 3삭, 4삭, 5삭, 6삭, 7삭, 8삭, 발, 발, 발 (13장 리치 텐파이)
+     * - 상가(VIP Bot 3)가 4만을 버려 론 화료 성립
+     * - 성립 역: 리치(1판) + 역패·발(1판) + 도라2(2판) = 4판 30부 만관 (12,000점 + 리치봉 1,000점)
      */
     async setupTestRonScenario() {
         if (this.isProcessingBotTurns) return;
@@ -1381,6 +1787,9 @@ class MahjongApp {
         const player = this.engine.players[0];
         player.melds = [];
         player.tsumoTile = null;
+        player.isRiichi = true; // 리치 선언 상태!
+        player.chips = 24000; // 리치봉 공탁(-1,000점)
+        this.engine.potChips = 1000; // 공탁금 1,000점
 
         player.hand = [
             { uid: 'ron_w2', type: 'wan', value: 2, name: '2만', corner: '2萬', unicode: '\u{1F008}', sortOrder: 102, subClass: 'type-wan' },
@@ -1421,9 +1830,11 @@ class MahjongApp {
         this.renderPlayerMelds();
         this.renderTsumoSlot();
         this.renderDeadWall();
+        this.updateChipsDisplay();
+        this.updateRiichiUi();
         this.updateHud();
 
-        this.dom.handGuideMsg.textContent = '⚡ [론 시연] 4만 대기 텐파이 세팅 완료! (도라: 5통 2장 보유) 상가(Bot 3)가 4만을 버립니다...';
+        this.dom.handGuideMsg.textContent = '⚡ [론 시연] 리치(立直) 4만 대기 텐파이 완료! (도라: 5통 2장 보유) 상가(Bot 3)가 4만을 버립니다...';
         await this.sleep(550);
 
         const simDiscard = {
@@ -1598,7 +2009,8 @@ class MahjongApp {
             customDora,
             roundWind,
             seatWind,
-            [this.engine.doraIndicator]
+            [this.engine.doraIndicator],
+            Boolean(player.isRiichi)
         );
 
         // ★ 결과 창(영수증)이 떴을 때는 바로 칩을 증감시키지 않고,
@@ -1703,8 +2115,9 @@ class MahjongApp {
 
         // 9. 지불 분담 명세
         if (this.dom.receiptPaymentBreakdown) {
+            let breakdownHtml = '';
             if (type === 'ron') {
-                this.dom.receiptPaymentBreakdown.innerHTML = `
+                breakdownHtml += `
                     <div class="payment-row">
                         <span class="pay-from">${targetPlayerName || '상가 (VIP Bot 3)'} 직격 전액 지불</span>
                         <span class="pay-amount gold-text">${yakuResult.totalPoints.toLocaleString()} pts</span>
@@ -1712,17 +2125,28 @@ class MahjongApp {
                 `;
             } else {
                 const split = yakuResult.paymentInfo.splitAmount;
-                this.dom.receiptPaymentBreakdown.innerHTML = `
+                breakdownHtml += `
                     <div class="payment-row"><span>하가 (VIP Bot 1) 지불</span><span class="pay-amount">${split.toLocaleString()} pts</span></div>
                     <div class="payment-row"><span>대면 (VIP Bot 2) 지불</span><span class="pay-amount">${split.toLocaleString()} pts</span></div>
                     <div class="payment-row"><span>상가 (VIP Bot 3) 지불</span><span class="pay-amount">${split.toLocaleString()} pts</span></div>
                 `;
             }
+            if (this.engine.potChips > 0) {
+                breakdownHtml += `
+                    <div class="payment-row" style="color: #ffd700; border-top: 1px dashed rgba(255,215,0,0.3); padding-top: 4px; margin-top: 4px;">
+                        <span>⚡ 공탁 리치봉 (${this.engine.potChips.toLocaleString()}점) 전액 회수</span>
+                        <span class="pay-amount gold-glow-text">+${this.engine.potChips.toLocaleString()} pts</span>
+                    </div>
+                `;
+            }
+            this.dom.receiptPaymentBreakdown.innerHTML = breakdownHtml;
         }
 
         // 10. 총 획득 칩
         if (this.dom.receiptTotalPoints) {
-            this.dom.receiptTotalPoints.textContent = `+${yakuResult.totalPoints.toLocaleString()} PTS`;
+            const potBonus = this.engine.potChips || 0;
+            const grandTotal = yakuResult.totalPoints + potBonus;
+            this.dom.receiptTotalPoints.textContent = `+${grandTotal.toLocaleString()} PTS${potBonus > 0 ? ' (공탁금 포함)' : ''}`;
         }
 
         // 11. 승리 축하 모달 오픈
@@ -1810,7 +2234,7 @@ class MahjongApp {
         // 2. 친(딜러) 이전 및 다음 국('동 2국', '동 3국' 등) 시작
         const newRoundData = this.engine.advanceToNextRound();
 
-        // 3. UI 갱신 (헤더, 펠트, 버림패, 봇 손패, 타일 랙, 왕패)
+        // 3. UI 갱신 (헤더, 펠트, 버림패, 봇 손패, 타일 랙, 왕패, 리치 공탁금)
         this.renderPlayerHand();
         this.renderPlayerMelds();
         this.renderTsumoSlot(this.engine.dealerIndex === 0);
@@ -1818,6 +2242,7 @@ class MahjongApp {
         this.renderAllRivers();
         this.renderDeadWall();
         this.updateSeatDisplay();
+        this.updateRiichiUi();
         this.updateTurnIndicators(this.engine.dealerIndex);
         this.updateHud();
 
@@ -1828,6 +2253,7 @@ class MahjongApp {
             this.dom.handGuideMsg.textContent = `${newRoundData.roundInfo.roundName} 시작! 내가 친(親)입니다. 14장의 패 중 버릴 패 1장을 클릭하세요.`;
             this.isProcessingBotTurns = false;
             this.updateHud();
+            this.checkAndPromptRiichi();
         } else {
             // 봇이 친(딜러)인 경우: 딜러 봇부터 턴 시작!
             this.dom.handGuideMsg.textContent = `${newRoundData.roundInfo.roundName} 시작! 친(親): ${dealer.name}의 선공입니다.`;
@@ -1865,10 +2291,12 @@ class MahjongApp {
         this.renderDeadWall();
         this.updateSeatDisplay();
         this.updateChipsDisplay();
+        this.updateRiichiUi();
         this.updateTurnIndicators(0);
         this.updateHud();
 
         this.dom.handGuideMsg.textContent = '동 1국 대국 시작! 14장의 패 중 버릴 패 1장을 클릭하세요.';
+        this.checkAndPromptRiichi();
     }
 
     handleSortHand() {
@@ -1900,8 +2328,13 @@ class MahjongApp {
 
     renderPlayerHand() {
         this.dom.playerHand.innerHTML = '';
-        this.engine.players[0].hand.forEach(tile => {
+        const player = this.engine.players[0];
+        player.hand.forEach(tile => {
             const tileEl = this.createTileElement(tile);
+            if (player.isRiichi) {
+                tileEl.classList.add('is-riichi-locked');
+                tileEl.title = `${tile.name} (리치 선언 상태 - 손패 변경 불가)`;
+            }
             this.dom.playerHand.appendChild(tileEl);
         });
     }
@@ -2102,7 +2535,7 @@ class MahjongApp {
         const canPlayerAct = (this.engine.currentTurn === 0 && !this.isProcessingBotTurns && (activeHandCount % 3 === 2));
 
         if (this.dom.playerHandContainer) {
-            if (canPlayerAct) {
+            if (canPlayerAct && !player.isRiichi) {
                 this.dom.playerHandContainer.classList.add('can-discard');
             } else {
                 this.dom.playerHandContainer.classList.remove('can-discard');

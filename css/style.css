@@ -789,6 +789,121 @@ body {
 .dead-wall-tile.tile-dragon-green .dw-corner, .dead-wall-tile.tile-dragon-green .dw-symbol { color: var(--color-dragon-green); }
 .dead-wall-tile.tile-dragon-red .dw-corner, .dead-wall-tile.tile-dragon-red .dw-symbol { color: var(--color-dragon-red); }
 
+/* ==========================================================================
+   4-2. 1,000점 공탁 리치봉(Riichi Stick) 및 공탁금 영역
+   ========================================================================== */
+.riichi-pot-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.65);
+    border: 1px solid rgba(255, 23, 68, 0.5);
+    border-radius: 20px;
+    padding: 3px 12px;
+    box-shadow: 
+        0 0 14px rgba(255, 23, 68, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    margin: 2px 0 4px 0;
+    animation: riichiPotGlow 2.5s infinite ease-in-out;
+}
+
+@keyframes riichiPotGlow {
+    0%, 100% {
+        box-shadow: 0 0 12px rgba(255, 23, 68, 0.3);
+        border-color: rgba(255, 23, 68, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(255, 23, 68, 0.7);
+        border-color: #ff5252;
+    }
+}
+
+.riichi-stick-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+/* 1,000점 점수봉 (하얀 직사각형 + 중앙 빨간 루비 도트) */
+.riichi-stick {
+    width: 64px;
+    height: 10px;
+    background: linear-gradient(180deg, #ffffff 0%, #f4ede2 65%, #d9d0c1 100%);
+    border: 1px solid #bfb39d;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2px;
+    box-shadow: 
+        0 2px 5px rgba(0, 0, 0, 0.7),
+        0 0 8px rgba(255, 255, 255, 0.5),
+        inset 0 1px 1px #ffffff;
+    position: relative;
+    animation: throwRiichiStick 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes throwRiichiStick {
+    0% {
+        transform: translateY(40px) scale(0.6) rotate(-15deg);
+        opacity: 0;
+    }
+    60% {
+        transform: translateY(-6px) scale(1.15) rotate(4deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(0) scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+/* 점수봉 양 끝 골드 캡 */
+.stick-cap {
+    width: 3px;
+    height: 6px;
+    background: linear-gradient(180deg, #ffd700 0%, #b8860b 100%);
+    border-radius: 1px;
+}
+
+/* 점수봉 중앙 루비 레드 도트 */
+.stick-ruby-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ff5252 0%, #d50000 65%, #8b0000 100%);
+    box-shadow: 0 0 5px #ff1744, 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.riichi-pot-info {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.riichi-pot-badge {
+    font-family: var(--font-heading);
+    font-size: 0.55rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #d50000 0%, #b71c1c 100%);
+    color: #ffffff;
+    padding: 1px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+}
+
+.riichi-pot-val {
+    font-family: var(--font-heading);
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #ffd54f;
+}
+
+.riichi-pot-desc {
+    font-size: 0.58rem;
+    color: #cbd5e1;
+}
+
 /* 5. 3D 미니 버림패 타일 디자인 (4인 뷰에 최적화된 36px x 48px) */
 .tile-discarded {
     width: 36px;
@@ -1246,6 +1361,129 @@ body {
 .win-hand-showcase .mahjong-tile.is-dora {
     border: 2px solid #ffd700 !important;
     box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), inset 0 0 6px rgba(255, 235, 100, 0.5) !important;
+}
+
+/* ==========================================================================
+   리치(Riichi) 선언 버튼, 상태 뱃지 및 타일 잠금 상태 스타일
+   ========================================================================== */
+
+/* 플레이어 프로필 내 리치 상태 뱃지 */
+.player-riichi-badge {
+    background: linear-gradient(135deg, #b71c1c 0%, #d50000 100%);
+    border: 1px solid #ffd700;
+    color: #ffffff;
+    font-size: 0.62rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(255, 23, 68, 0.7);
+    letter-spacing: 0.5px;
+    animation: riichiBadgePulse 1.8s infinite ease-in-out;
+}
+
+@keyframes riichiBadgePulse {
+    0%, 100% {
+        box-shadow: 0 0 6px rgba(255, 23, 68, 0.6);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 14px rgba(255, 23, 68, 0.95), 0 0 8px rgba(255, 215, 0, 0.6);
+        transform: scale(1.04);
+    }
+}
+
+/* [리치 선언] 메인 버튼 (텐파이 시 강렬하게 출현) */
+.btn-declare-riichi {
+    background: linear-gradient(135deg, #b71c1c 0%, #e53935 50%, #c62828 100%);
+    border: 2px solid #ffd700;
+    border-radius: 8px;
+    color: #ffffff;
+    padding: 4px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-family: var(--font-heading);
+    box-shadow: 
+        0 0 14px rgba(255, 23, 68, 0.8),
+        0 4px 8px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    animation: riichiBtnFlash 1.6s infinite ease-in-out;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.btn-declare-riichi:hover {
+    transform: translateY(-2px) scale(1.06);
+    box-shadow: 
+        0 0 22px rgba(255, 23, 68, 1),
+        0 6px 12px rgba(0, 0, 0, 0.7),
+        0 0 12px #ffd700;
+}
+
+.btn-declare-riichi:active {
+    transform: translateY(1px) scale(0.98);
+}
+
+@keyframes riichiBtnFlash {
+    0%, 100% {
+        border-color: #ffd700;
+        box-shadow: 0 0 10px rgba(255, 23, 68, 0.6);
+    }
+    50% {
+        border-color: #ffffff;
+        box-shadow: 0 0 20px rgba(255, 23, 68, 0.95), 0 0 10px #ffd700;
+    }
+}
+
+.riichi-fire-icon {
+    font-size: 0.9rem;
+    animation: flameShake 0.8s infinite ease-in-out;
+}
+
+@keyframes flameShake {
+    0%, 100% { transform: rotate(-5deg); }
+    50% { transform: rotate(5deg); }
+}
+
+.riichi-btn-kanji {
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: #ffe082;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.riichi-btn-text {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+}
+
+/* 리치 상태 손패 고정(잠금) 스타일 */
+.mahjong-tile.is-riichi-locked {
+    cursor: not-allowed !important;
+    opacity: 0.82;
+}
+
+.mahjong-tile.is-riichi-locked:hover {
+    transform: none !important;
+    box-shadow: 0 4px 0 #9f8f6b, 0 6px 0 var(--tile-back-green), 0 10px 14px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* 리치 선언 시 텐파이를 유지하는 타패 후보 하이라이트 */
+.mahjong-tile.can-riichi-discard {
+    border: 2.5px solid #ff3d00 !important;
+    box-shadow: 
+        0 0 16px rgba(255, 61, 0, 0.95),
+        inset 0 0 8px rgba(255, 87, 34, 0.6),
+        0 6px 0 #9f8f6b !important;
+    animation: discardBeacon 0.9s infinite alternate;
+    cursor: pointer;
+}
+
+@keyframes discardBeacon {
+    from { transform: translateY(-4px); }
+    to { transform: translateY(-12px); }
 }
 
 /* ==========================================================================
