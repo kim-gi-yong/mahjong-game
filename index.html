@@ -258,22 +258,39 @@
                         <span class="btn-icon">📜</span>
                         <span class="btn-text">136장 전체 패산 검사</span>
                     </button>
-                    <!-- 울기/론/쯔모/리치 테스트 시연용 원클릭 버튼 그룹 -->
+                    <!-- 울기/론/쯔모/리치/탕야오/핑후/혼일색 테스트 시연용 원클릭 버튼 그룹 -->
                     <button class="casino-btn btn-outline" id="btnTestRiichi" title="리치(Riichi) 선언 가능한 14장 텐파이 상태를 즉시 세팅합니다">
                         <span class="btn-icon">⚡</span>
                         <span class="btn-text">리치 텐파이 세팅</span>
+                    </button>
+                    <button class="casino-btn btn-test-tanyao" id="btnTestTanyaoPinfu" title="탕야오(Tanyao) + 핑후(Pinfu) 복합 족보 화료 시나리오를 즉시 시연합니다">
+                        <span class="btn-icon">🎯</span>
+                        <span class="btn-text">탕야오·핑후 시연</span>
                     </button>
                     <button class="casino-btn btn-test-meld" id="btnTestRon" title="론(Ron) 만관 화료 시나리오를 즉시 시연합니다">
                         <span class="btn-icon">⚡</span>
                         <span class="btn-text">론(Ron) 만관 시연</span>
                     </button>
-                    <button class="casino-btn btn-test-tsumo" id="btnTestTsumo" title="쯔모(Tsumo) 하네만 화료 시나리오를 즉시 시연합니다">
+                    <button class="casino-btn btn-test-tsumo" id="btnTestTsumo" title="혼일색(Honitsu) 쯔모 하네만 화료 시나리오를 즉시 시연합니다">
                         <span class="btn-icon">👑</span>
-                        <span class="btn-text">쯔모(Tsumo) 하네만 시연</span>
+                        <span class="btn-text">혼일색 쯔모 시연</span>
                     </button>
                 </div>
             </footer>
         </main>
+    </div>
+
+    <!-- 리치(立直) 선언 시 전체 화면을 가르는 시네마틱 번개 & 컷인 오버레이 -->
+    <div class="riichi-cutin-overlay hidden" id="riichiCutinOverlay">
+        <div class="riichi-lightning-layer"></div>
+        <div class="riichi-cutin-backdrop"></div>
+        <div class="riichi-slash-beam"></div>
+        <div class="riichi-cutin-content">
+            <div class="riichi-aura-glow"></div>
+            <div class="riichi-kanji-slam">立直</div>
+            <div class="riichi-eng-badge">⚡ RIICHI! 立直 선언 ⚡</div>
+            <div class="riichi-sub-caption">1,000점 점수봉 공탁! 승리를 선언합니다!</div>
+        </div>
     </div>
 
     <!-- 치/펑/깡/론/쯔모/스킵 화면 중앙 인터랙션 오버레이 팝업 -->
@@ -360,8 +377,24 @@
 
                 <div class="receipt-divider-dashed"></div>
 
-                <!-- 승리자 & 화료 형태 정보 -->
+                <!-- 승리자 & 화료 형태 정보 (화려한 빛 번짐 및 황금 폭죽 이펙트 탑재) -->
                 <div class="receipt-winner-box">
+                    <!-- 승리 축하 골드 오로라 빛 번짐(Glow) & 황금 폭죽 파티클 백드롭 -->
+                    <div class="winner-celebration-backdrop" id="winnerCelebrationBackdrop">
+                        <div class="winner-glow-orb"></div>
+                        <div class="winner-light-rays"></div>
+                        <div class="winner-fireworks">
+                            <span class="firework-spark s1">✦</span>
+                            <span class="firework-spark s2">★</span>
+                            <span class="firework-spark s3">✦</span>
+                            <span class="firework-spark s4">★</span>
+                            <span class="firework-spark s5">✦</span>
+                            <span class="firework-spark s6">✦</span>
+                            <span class="firework-spark s7">★</span>
+                            <span class="firework-spark s8">✦</span>
+                        </div>
+                    </div>
+
                     <div class="receipt-winner-line">
                         <span class="winner-title">WINNER</span>
                         <span class="winner-name gold-text" id="receiptWinnerName">東家 High Roller Player (친/親)</span>

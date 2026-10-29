@@ -1071,11 +1071,13 @@ class MahjongApp {
             riichiPotDesc: document.getElementById('riichiPotDesc'),
             playerRiichiBadge: document.getElementById('playerRiichiBadge'),
             btnDeclareRiichi: document.getElementById('btnDeclareRiichi'),
+            riichiCutinOverlay: document.getElementById('riichiCutinOverlay'),
 
             // 승리 축하 모달 & 카지노 정산 영수증 엘리먼트
             winModal: document.getElementById('winModal'),
             winTitle: document.getElementById('winTitle'),
             winHandShowcase: document.getElementById('winHandShowcase'),
+            winnerCelebrationBackdrop: document.getElementById('winnerCelebrationBackdrop'),
             receiptWinnerName: document.getElementById('receiptWinnerName'),
             receiptWinIcon: document.getElementById('receiptWinIcon'),
             receiptWinTypeName: document.getElementById('receiptWinTypeName'),
@@ -1097,6 +1099,7 @@ class MahjongApp {
             btnDrawTile: document.getElementById('btnDrawTile'),
             btnViewDeck: document.getElementById('btnViewDeck'),
             btnTestRiichi: document.getElementById('btnTestRiichi'),
+            btnTestTanyaoPinfu: document.getElementById('btnTestTanyaoPinfu'),
             btnTestRon: document.getElementById('btnTestRon'),
             btnTestTsumo: document.getElementById('btnTestTsumo'),
             btnTestMeld: document.getElementById('btnTestMeld'),
@@ -1142,6 +1145,13 @@ class MahjongApp {
         if (this.dom.btnTestRiichi) {
             this.dom.btnTestRiichi.addEventListener('click', () => {
                 this.setupTestRiichiScenario();
+            });
+        }
+
+        // [탕야오 & 핑후 시연] 테스트 시연 버튼
+        if (this.dom.btnTestTanyaoPinfu) {
+            this.dom.btnTestTanyaoPinfu.addEventListener('click', () => {
+                this.setupTestTanyaoPinfuScenario();
             });
         }
 
@@ -1653,6 +1663,9 @@ class MahjongApp {
         // 2. 텐파이 효과음 재생
         this.audio.playRiichiSound();
 
+        // 2-1. 화면 중앙을 가르는 시네마틱 붉은 번개 & "立直" 컷인 애니메이션 연출 (0.65초)
+        this.triggerRiichiCutin();
+
         // 3. UI 갱신 (리치 버튼 숨김, 뱃지 노출, 점수봉 투척 애니메이션)
         if (this.dom.btnDeclareRiichi) this.dom.btnDeclareRiichi.classList.add('hidden');
         this.updateRiichiUi();
@@ -1695,6 +1708,19 @@ class MahjongApp {
 
         // 6. 상대 봇 턴 진행
         await this.runBotTurnSequence(1, false);
+    }
+
+    /**
+     * 리치(立直) 선언 시 화면 중앙을 가르는 시네마틱 붉은 번개 및 '立直' 컷인 애니메이션 연출 (약 0.5~0.65초)
+     */
+    triggerRiichiCutin() {
+        const overlay = this.dom.riichiCutinOverlay;
+        if (!overlay) return;
+        overlay.classList.remove('hidden');
+        void overlay.offsetWidth; // 브라우저 강제 리플로우로 CSS 키프레임 초기화
+        setTimeout(() => {
+            overlay.classList.add('hidden');
+        }, 650);
     }
 
     /**
@@ -1773,6 +1799,105 @@ class MahjongApp {
         this.checkAndPromptRiichi();
 
         this.dom.handGuideMsg.textContent = '⚡ [리치 시연] 텐파이 달성! 화면 우측의 강렬한 [리치(立直) 선언] 버튼을 클릭해 보세요!';
+    }
+
+    /**
+     * [시연: 대표 족보] 탕야오(Tanyao) + 핑후(Pinfu) 복합 족보 화료 시연 세팅
+     * - 손패: 2만, 3만, 4만, 3통, 4통, 5통, 4삭, 5삭, 6삭, 7삭, 8삭, 2통, 2통 (13장 멘젠 텐파이)
+     * - 2~8 숫자패로만 구성 ➔ 탕야오(Tanyao) 조건 완벽 만족 (+1판)
+     * - 4개의 모든 몸통이 슌츠, 머리는 2통(비역패), 대기는 6삭·9삭 양면 대기 ➔ 핑후(Pinfu) 조건 완벽 만족 (+1판)
+     * - 상가(VIP Bot 3)가 6삭을 버려 론 화료 성립 ➔ 탕야오(1판) + 핑후(1판) = 2판 30부 화료!
+     */
+    async setupTestTanyaoPinfuScenario() {
+        if (this.isProcessingBotTurns) return;
+
+        const player = this.engine.players[0];
+        player.melds = [];
+        player.tsumoTile = null;
+        player.isRiichi = false;
+
+        player.hand = [
+            { uid: 'tp_w2', type: 'wan', value: 2, name: '2만', corner: '2萬', unicode: '\u{1F008}', sortOrder: 102, subClass: 'type-wan' },
+            { uid: 'tp_w3', type: 'wan', value: 3, name: '3만', corner: '3萬', unicode: '\u{1F009}', sortOrder: 103, subClass: 'type-wan' },
+            { uid: 'tp_w4', type: 'wan', value: 4, name: '4만', corner: '4萬', unicode: '\u{1F00A}', sortOrder: 104, subClass: 'type-wan' },
+            { uid: 'tp_p3', type: 'pin', value: 3, name: '3통', corner: '3筒', unicode: '\u{1F01B}', sortOrder: 203, subClass: 'type-pin' },
+            { uid: 'tp_p4', type: 'pin', value: 4, name: '4통', corner: '4筒', unicode: '\u{1F01C}', sortOrder: 204, subClass: 'type-pin' },
+            { uid: 'tp_p5', type: 'pin', value: 5, name: '5통', corner: '5筒', unicode: '\u{1F01D}', sortOrder: 205, subClass: 'type-pin' },
+            { uid: 'tp_s4', type: 'sou', value: 4, name: '4삭', corner: '4索', unicode: '\u{1F013}', sortOrder: 304, subClass: 'type-sou' },
+            { uid: 'tp_s5', type: 'sou', value: 5, name: '5삭', corner: '5索', unicode: '\u{1F014}', sortOrder: 305, subClass: 'type-sou' },
+            { uid: 'tp_s6', type: 'sou', value: 6, name: '6삭', corner: '6索', unicode: '\u{1F015}', sortOrder: 306, subClass: 'type-sou' },
+            { uid: 'tp_s7', type: 'sou', value: 7, name: '7삭', corner: '7索', unicode: '\u{1F016}', sortOrder: 307, subClass: 'type-sou' },
+            { uid: 'tp_s8', type: 'sou', value: 8, name: '8삭', corner: '8索', unicode: '\u{1F017}', sortOrder: 308, subClass: 'type-sou' },
+            { uid: 'tp_p2_1', type: 'pin', value: 2, name: '2통', corner: '2筒', unicode: '\u{1F01A}', sortOrder: 202, subClass: 'type-pin' },
+            { uid: 'tp_p2_2', type: 'pin', value: 2, name: '2통', corner: '2筒', unicode: '\u{1F01A}', sortOrder: 202, subClass: 'type-pin' }
+        ];
+
+        // 도라 표시패 설정
+        const simDoraIndicator = {
+            uid: `dora_ind_w8_${Date.now()}`,
+            type: 'wan',
+            value: 8,
+            name: '8만',
+            corner: '8萬',
+            unicode: '\u{1F00E}',
+            sortOrder: 108,
+            subClass: 'type-wan'
+        };
+        this.engine.doraIndicator = simDoraIndicator;
+        this.engine.doraTarget = (typeof YakuEngine !== 'undefined' && YakuEngine.getDoraTarget)
+            ? YakuEngine.getDoraTarget(simDoraIndicator)
+            : { type: 'wan', value: 9, name: '9만', corner: '9萬' };
+        if (this.engine.deadWall && this.engine.deadWall.length >= 5) {
+            this.engine.deadWall[4] = simDoraIndicator;
+        }
+
+        this.renderPlayerHand();
+        this.renderPlayerMelds();
+        this.renderTsumoSlot();
+        this.renderDeadWall();
+        this.updateChipsDisplay();
+        this.updateRiichiUi();
+        this.updateHud();
+
+        this.dom.handGuideMsg.textContent = '🎯 [탕야오·핑후 시연] 2~8 수패 4슌츠 6삭·9삭 양면 대기 텐파이 완료! 상가(Bot 3)가 6삭을 버립니다...';
+        await this.sleep(550);
+
+        const simDiscard = {
+            uid: `sim_tp_s6_${Date.now()}`,
+            type: 'sou',
+            value: 6,
+            name: '6삭',
+            corner: '6索',
+            unicode: '\u{1F015}',
+            sortOrder: 306,
+            subClass: 'type-sou'
+        };
+
+        this.engine.players[3].discards.push(simDiscard);
+        this.latestDiscardUid = simDiscard.uid;
+        this.audio.playDiscardSound();
+        this.renderAllRivers();
+
+        const chiOptions = this.engine.checkChi(simDiscard, player.hand);
+        const ponOption = this.engine.checkPon(simDiscard, player.hand);
+        const kanOption = this.engine.checkKan(simDiscard, player.hand);
+        const canRon = this.engine.checkWin([...player.hand, simDiscard], player.melds.length);
+
+        const userDecision = await this.promptPlayerAction({
+            botName: '상가 (VIP Bot 3)',
+            discardedTile: simDiscard,
+            chiOptions,
+            ponOption,
+            kanOption,
+            canRon,
+            fromPlayerId: 3
+        });
+
+        if (userDecision && userDecision.action !== 'skip') {
+            if (userDecision.action === 'ron') {
+                this.triggerVictory('ron', simDiscard, '상가 (VIP Bot 3)', 'ron', 3);
+            }
+        }
     }
 
     /**
@@ -1887,10 +2012,10 @@ class MahjongApp {
     }
 
     /**
-     * [시연 2] 쯔모(Tsumo) 하네만(跳満) 화료 시연 세팅
-     * - 손패: 111통, 345통, 789통, 동동동, 백 (13장 혼일색 텐파이)
+     * [시연: 대표 족보] 혼일색(Honitsu) 쯔모 하네만(跳満) 화료 시연 세팅
+     * - 손패: 111통, 345통, 789통, 동동동, 백 (13장 통수패 + 자패 혼일색 텐파이)
      * - 패산에서 [백(White Dragon)] 쯔모!
-     * - 성립 역: 혼일색(3판) + 자풍 동(1판) + 장풍 동(1판) + 멘젠 쯔모(1판) = 6판 30부 하네만 (18,000점 / 각 6,000점)
+     * - 성립 역: 혼일색 (3판) + 멘젠 쯔모 (1판) + 자풍패·동 (1판) + 장풍패·동 (1판) + 도라3 (3판) = 9판 배만
      */
     async setupTestTsumoScenario() {
         if (this.isProcessingBotTurns) return;
@@ -1940,7 +2065,7 @@ class MahjongApp {
         this.renderDeadWall();
         this.updateHud();
 
-        this.dom.handGuideMsg.textContent = '👑 [쯔모 시연] 혼일색 백 대기 텐파이 세팅 완료! (도라: 1통 3장 보유) 패산에서 [백]을 쯔모합니다...';
+        this.dom.handGuideMsg.textContent = '👑 [혼일색 쯔모 시연] 통수패 + 자패(동, 백) 혼일색 텐파이 세팅 완료! (도라: 1통 3장 보유) 패산에서 [백]을 쯔모합니다...';
         await this.sleep(600);
 
         // 결정타 백 쯔모
@@ -2149,7 +2274,12 @@ class MahjongApp {
             this.dom.receiptTotalPoints.textContent = `+${grandTotal.toLocaleString()} PTS${potBonus > 0 ? ' (공탁금 포함)' : ''}`;
         }
 
-        // 11. 승리 축하 모달 오픈
+        // 11. 승리 축하 모달 오픈 및 화려한 황금빛 오로라(Glow) & 황금 폭죽 이펙트 초기화
+        if (this.dom.winnerCelebrationBackdrop) {
+            this.dom.winnerCelebrationBackdrop.style.display = 'none';
+            void this.dom.winnerCelebrationBackdrop.offsetWidth;
+            this.dom.winnerCelebrationBackdrop.style.display = 'block';
+        }
         this.dom.winModal.classList.remove('hidden');
     }
 

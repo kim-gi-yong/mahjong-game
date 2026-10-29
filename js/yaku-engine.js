@@ -274,21 +274,25 @@ class YakuEngine {
 
     /**
      * [족보 3] 탕야오 (断幺九 / Tanyao) - 1판
-     * 1, 9, 자패가 전혀 없이 2~8 수패로만 구성
+     * 1, 9, 자패를 1장도 쓰지 않고 2~8 숫자 패로만 14장을 완성했는지 검사 (+1판)
+     * 멘젠 및 울기(쿠이탕) 모두 인정
      */
     static checkTanyao(ctx) {
+        if (!ctx.sortedTiles || ctx.sortedTiles.length === 0) return false;
         return ctx.sortedTiles.every(t => this.isSuited(t) && Number(t.value) >= 2 && Number(t.value) <= 8);
     }
 
     /**
      * [족보 4] 핑후 (平和 / Pinfu) - 1판
-     * 멘젠, 4슌츠, 비역패 머리, 양면(Ryanmen) 대기
+     * 멘젠 한정, 모든 몸통이 슌츠(연속된 숫자 3장)로만 이루어져 있고,
+     * 머리가 역패가 아니며(삼원패 X, 자풍 X, 장풍 X),
+     * 마지막 패를 양면 대기(Ryanmen)로 화료했는지 검사 (+1판)
      */
     static checkPinfu(ctx, decomp) {
         if (!ctx.isMenzen) return false;
         if (!decomp || !decomp.mentsuList || decomp.mentsuList.length !== 4) return false;
 
-        // 1. 4개 멘츠가 모두 슌츠여야 함
+        // 1. 4개 몸통(멘츠)이 모두 슌츠(연속된 숫자 3장)여야 함
         const allShuntsu = decomp.mentsuList.every(m => m.type === 'shuntsu');
         if (!allShuntsu) return false;
 
@@ -300,25 +304,36 @@ class YakuEngine {
             if (hWind === ctx.seatWind || hWind === ctx.roundWind) return false;
         }
 
-        // 3. 화료 대기패가 양면 대기(Ryanmen)여야 함
+        // 3. 마지막 패를 양면 대기(Ryanmen)로 화료했는지 정밀 검사
         if (!ctx.winningTile || !this.isSuited(ctx.winningTile)) return false;
         const wVal = Number(ctx.winningTile.value);
+        const wType = ctx.winningTile.type;
+
+        // 머리에 화료패가 속한 경우 단기(Tanki) 대기이므로 핑후 불성립
+        if (ctx.winningTile.uid && decomp.jantou.some(t => t.uid === ctx.winningTile.uid)) {
+            return false;
+        }
 
         let isRyanmen = false;
         for (const m of decomp.mentsuList) {
-            if (m.tiles[0].type === ctx.winningTile.type) {
-                const vals = m.tiles.map(t => Number(t.value)).sort((a, b) => a - b);
-                // [v, v+1, v+2]
-                // 1) wVal == v+2 이고 v > 1 (예: 2,3에 4대기)
-                if (wVal === vals[2] && vals[0] > 1) {
-                    isRyanmen = true;
-                    break;
-                }
-                // 2) wVal == v 이고 v+2 < 9 (예: 7,8에 6대기)
-                if (wVal === vals[0] && vals[2] < 9) {
-                    isRyanmen = true;
-                    break;
-                }
+            // 화료패가 해당 슌츠에 포함되어 있어야 함
+            if (ctx.winningTile.uid) {
+                if (!m.tiles.some(t => t.uid === ctx.winningTile.uid)) continue;
+            } else if (m.tiles[0].type !== wType) {
+                continue;
+            }
+
+            const vals = m.tiles.map(t => Number(t.value)).sort((a, b) => a - b);
+            // [v, v+1, v+2]
+            // 1) wVal == v+2 이고 v > 1 (예: 2,3 대기에 4 완성 -> 1,4 양면)
+            if (wVal === vals[2] && vals[0] > 1) {
+                isRyanmen = true;
+                break;
+            }
+            // 2) wVal == v 이고 v+2 < 9 (예: 7,8 대기에 6 완성 -> 6,9 양면)
+            if (wVal === vals[0] && vals[2] < 9) {
+                isRyanmen = true;
+                break;
             }
         }
 
@@ -561,9 +576,12 @@ class YakuEngine {
 
     /**
      * [족보 18] 혼일색 (混一色 / Honitsu) - 멘젠 3판 / 울기 2판
-     * 한 종류의 수패(만/통/삭)와 자패(풍/삼원)로만 구성
+     * 한 가지 종류의 수패(만, 통, 삭 중 1개)와 자패만 섞어서 완성했는지 검사 (+3판, 멘젠이 아니면 +2판)
      */
     static checkHonitsu(ctx) {
+        if (!ctx.sortedTiles || ctx.sortedTiles.length === 0) return false;
+        const allSuitOrHonor = ctx.sortedTiles.every(t => this.isSuited(t) || this.isHonor(t));
+        if (!allSuitOrHonor) return false;
         const suits = new Set(ctx.sortedTiles.filter(t => this.isSuited(t)).map(t => t.type));
         const hasHonors = ctx.sortedTiles.some(t => this.isHonor(t));
         return suits.size === 1 && hasHonors;
@@ -918,10 +936,10 @@ class YakuEngine {
             yakuList.push({ name: '칠대자 (치이또이츠)', hanzi: '七対子', han: 2, desc: '서로 다른 7쌍의 또이츠 완성' });
 
             if (this.checkTanyao(ctx)) {
-                yakuList.push({ name: '탕야오 (단요구)', hanzi: '断幺九', han: 1, desc: '1, 9, 자패가 없는 2~8 수패' });
+                yakuList.push({ name: '탕야오 (Tanyao / 단요구)', hanzi: '断幺九', han: 1, desc: '1, 9, 자패가 없는 2~8 수패로만 구성' });
             }
             if (this.checkHonitsu(ctx)) {
-                yakuList.push({ name: '혼일색 (혼이츠)', hanzi: '混一色', han: 3, desc: '한 가지 수패와 자패로만 구성' });
+                yakuList.push({ name: '혼일색 (Honitsu / 혼이츠)', hanzi: '混一色', han: 3, desc: '한 가지 수패와 자패로만 구성' });
             } else if (this.checkChinitsu(ctx)) {
                 yakuList.push({ name: '청일색 (칭이츠)', hanzi: '清一色', han: 6, desc: '한 가지 수패로만 구성' });
             }
@@ -1005,7 +1023,7 @@ class YakuEngine {
             // 2. 일반 주요 족보 순차 검사
             // (1) 탕야오 (1판)
             if (this.checkTanyao(ctx)) {
-                yakuList.push({ name: '탕야오 (단요구)', hanzi: '断幺九', han: 1, desc: '1, 9, 자패가 없는 2~8 수패' });
+                yakuList.push({ name: '탕야오 (Tanyao / 단요구)', hanzi: '断幺九', han: 1, desc: '1, 9, 자패가 없는 2~8 수패로만 구성' });
             }
 
             // (2) 멘젠 쯔모 (1판)
@@ -1024,7 +1042,7 @@ class YakuEngine {
 
             // (5) 핑후 (1판)
             if (this.checkPinfu(ctx, fullDecomp)) {
-                yakuList.push({ name: '핑후 (핀후)', hanzi: '平和', han: 1, desc: '4순자·비역패 머리·양면 대기' });
+                yakuList.push({ name: '핑후 (Pinfu / 핀후)', hanzi: '平和', han: 1, desc: '4순자·비역패 머리·양면 대기 화료' });
             }
 
             // (6) 량페코 (3판) 또는 이페코 (1판)
@@ -1104,7 +1122,7 @@ class YakuEngine {
             // (16) 혼일색 (멘젠 3판 / 울기 2판) 또는 청일색 (멘젠 6판 / 울기 5판)
             if (this.checkHonitsu(ctx)) {
                 yakuList.push({
-                    name: '혼일색 (혼이츠)',
+                    name: '혼일색 (Honitsu / 혼이츠)',
                     hanzi: '混一色',
                     han: isMenzen ? 3 : 2,
                     desc: '한 종류의 수패와 자패로만 구성'

@@ -992,16 +992,33 @@ body {
 .tile-discarded.tile-dragon-white .d-corner,
 .tile-discarded.tile-dragon-white .d-symbol { color: var(--color-dragon-white); }
 
-/* 가장 최근에 버려진 패 강조 (하이라이트) */
+/* ==============================================================================
+   찰진 손맛의 타패(Discard) 3D 드롭 & 충격파 애니메이션
+   ============================================================================== */
 .tile-discarded.is-latest {
-    border-color: #ffd54f;
+    border-color: #ffd54f !important;
     box-shadow: 
         0 1px 0 #ffffff inset,
-        0 0 0 1.5px #ffd54f,
+        0 0 0 2px #ffd54f,
         0 3px 0 #7e704f,
         0 4px 0 var(--tile-back-green),
-        0 8px 12px rgba(212, 175, 55, 0.4),
-        0 0 12px rgba(255, 213, 79, 0.6);
+        0 12px 18px rgba(0, 0, 0, 0.65),
+        0 0 16px rgba(255, 213, 79, 0.8) !important;
+    animation: discardTileDrop 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    z-index: 10;
+    position: relative;
+}
+
+/* 타패 착지 시 순간적으로 터지는 골드 충격파 (Impact Wave) */
+.tile-discarded.is-latest::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 6px;
+    border: 2px solid #ffd700;
+    pointer-events: none;
+    animation: discardImpactWave 0.45s ease-out forwards;
+    z-index: 2;
 }
 
 .tile-discarded.is-latest::after {
@@ -1014,21 +1031,43 @@ body {
     border-radius: 50%;
     background: #ff5252;
     box-shadow: 0 0 6px #ff1744;
+    z-index: 3;
 }
 
-/* 패가 버려질 때 위에서 통통 튀며 착지하는 3D 드롭 애니메이션 */
+/* 패가 버려질 때 위에서 강렬하게 떨어지며 테이블에 꽂히는 찰진 드롭 & 스케일 애니메이션 */
 @keyframes discardTileDrop {
     0% {
-        transform: translateY(-24px) scale(1.15) rotate(3deg);
-        opacity: 0.2;
+        transform: translateY(-34px) scale(1.35) rotate(-6deg);
+        opacity: 0.15;
+        filter: brightness(1.3);
     }
-    60% {
-        transform: translateY(2px) scale(0.98) rotate(-1deg);
+    55% {
+        transform: translateY(3px) scale(0.94) rotate(1.5deg);
         opacity: 1;
+        filter: brightness(1.1);
+    }
+    78% {
+        transform: translateY(-2px) scale(1.04) rotate(-0.5deg);
     }
     100% {
         transform: translateY(0) scale(1) rotate(0deg);
         opacity: 1;
+        filter: brightness(1);
+    }
+}
+
+@keyframes discardImpactWave {
+    0% {
+        transform: scale(0.7);
+        opacity: 1;
+        border-color: #ffd700;
+        box-shadow: 0 0 12px rgba(255, 215, 0, 0.9);
+    }
+    100% {
+        transform: scale(1.45);
+        opacity: 0;
+        border-color: transparent;
+        box-shadow: none;
     }
 }
 
@@ -2522,6 +2561,21 @@ body {
     justify-content: center;
 }
 
+/* 탕야오·핑후 시연 버튼 스타일링 */
+.btn-test-tanyao {
+    background: linear-gradient(135deg, #1b5e20 0%, #388e3c 50%, #1b5e20 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid #81c784 !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.45) !important;
+}
+
+.btn-test-tanyao:hover {
+    background: linear-gradient(135deg, #2e7d32 0%, #4caf50 50%, #2e7d32 100%) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(76, 175, 80, 0.7) !important;
+}
+
 /* 쯔모 시연 버튼 스타일링 */
 .btn-test-tsumo {
     background: linear-gradient(135deg, #b8860b 0%, #ffd700 50%, #b8860b 100%) !important;
@@ -3317,6 +3371,296 @@ body {
     0% { transform: scale(1); filter: brightness(1); }
     25% { transform: scale(1.25); color: #ff5252; text-shadow: 0 0 12px rgba(255, 82, 82, 0.9); }
     100% { transform: scale(1); filter: brightness(1); }
+}
+
+/* ==============================================================================
+   11. 시네마틱 리치(立直) 컷인 & 붉은 번개 이펙트 (Riichi Cut-in Splash)
+   ============================================================================== */
+.riichi-cutin-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.riichi-cutin-overlay.hidden {
+    display: none !important;
+}
+
+/* 붉은 비네트 & 스트로브 플래시 백드롭 */
+.riichi-cutin-backdrop {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(183, 28, 28, 0.45) 0%, rgba(13, 0, 0, 0.88) 100%);
+    animation: riichiBackdropFlash 0.65s ease-out forwards;
+}
+
+@keyframes riichiBackdropFlash {
+    0% { opacity: 0; background: rgba(255, 23, 68, 0.7); }
+    15% { opacity: 1; background: radial-gradient(circle, rgba(213, 0, 0, 0.6) 0%, rgba(20, 0, 0, 0.92) 100%); }
+    80% { opacity: 0.95; }
+    100% { opacity: 0; }
+}
+
+/* 붉은 번개 스파크 레이어 */
+.riichi-lightning-layer {
+    position: absolute;
+    inset: 0;
+    background-image: 
+        radial-gradient(circle at 30% 40%, rgba(255, 23, 68, 0.65) 0%, transparent 45%),
+        radial-gradient(circle at 70% 60%, rgba(255, 82, 82, 0.65) 0%, transparent 45%),
+        repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(255, 23, 68, 0.18) 15px, rgba(255, 23, 68, 0.18) 30px);
+    mix-blend-mode: screen;
+    animation: riichiLightningPulse 0.65s steps(2, start) infinite;
+}
+
+@keyframes riichiLightningPulse {
+    0%, 100% { opacity: 0.8; filter: brightness(1.2); }
+    50% { opacity: 1; filter: brightness(1.8) contrast(1.5); }
+}
+
+/* 대각선 슬래시 에너지 빔 */
+.riichi-slash-beam {
+    position: absolute;
+    width: 250%;
+    height: 120px;
+    background: linear-gradient(180deg, transparent 0%, rgba(255, 23, 68, 0.85) 45%, #ffffff 50%, rgba(255, 215, 0, 0.85) 55%, transparent 100%);
+    transform: rotate(-16deg);
+    box-shadow: 0 0 50px rgba(255, 23, 68, 0.9);
+    animation: riichiSlashAnim 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes riichiSlashAnim {
+    0% { transform: rotate(-16deg) scaleY(0.1); opacity: 0; }
+    20% { transform: rotate(-16deg) scaleY(1.4); opacity: 1; }
+    85% { transform: rotate(-16deg) scaleY(1); opacity: 0.9; }
+    100% { transform: rotate(-16deg) scaleY(0.05); opacity: 0; }
+}
+
+/* 중앙 텍스트 콘텐츠 */
+.riichi-cutin-content {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.riichi-aura-glow {
+    position: absolute;
+    width: 320px;
+    height: 320px;
+    background: radial-gradient(circle, rgba(255, 23, 68, 0.75) 0%, rgba(255, 215, 0, 0.5) 45%, transparent 70%);
+    border-radius: 50%;
+    filter: blur(25px);
+    pointer-events: none;
+    animation: riichiAuraPulse 0.65s ease-out forwards;
+    z-index: -1;
+}
+
+@keyframes riichiAuraPulse {
+    0% { transform: scale(0.3); opacity: 0; }
+    30% { transform: scale(1.4); opacity: 1; }
+    75% { transform: scale(1.1); opacity: 0.9; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* 거대한 한자 立直 강타 애니메이션 */
+.riichi-kanji-slam {
+    font-family: var(--font-heading), 'Noto Serif KR', serif;
+    font-size: clamp(5rem, 14vw, 9.5rem);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #fff176 25%, #ffb300 55%, #d50000 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 25px rgba(255, 23, 68, 0.95)) drop-shadow(0 0 60px rgba(255, 215, 0, 0.75)) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.95));
+    animation: riichiKanjiSlamAnim 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes riichiKanjiSlamAnim {
+    0% {
+        transform: scale(3.2) translateY(-25px);
+        opacity: 0;
+        filter: blur(14px) drop-shadow(0 0 50px #ff1744);
+    }
+    28% {
+        transform: scale(0.92) translateY(6px);
+        opacity: 1;
+        filter: blur(0) drop-shadow(0 0 30px #ff1744);
+    }
+    40% {
+        transform: scale(1.08) translateY(-2px);
+    }
+    75% {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+        filter: blur(0);
+    }
+    100% {
+        transform: scale(1.35) translateY(-15px);
+        opacity: 0;
+        filter: blur(8px);
+    }
+}
+
+.riichi-eng-badge {
+    margin-top: 10px;
+    background: rgba(183, 28, 28, 0.92);
+    border: 2px solid #ffd700;
+    color: #ffffff;
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 900;
+    letter-spacing: 3px;
+    padding: 6px 24px;
+    border-radius: 30px;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 4px 12px rgba(0, 0, 0, 0.8);
+    animation: riichiBadgeSlamAnim 0.65s ease-out forwards;
+}
+
+.riichi-sub-caption {
+    margin-top: 6px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #ffe082;
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.9), 0 0 12px #ff8f00;
+    letter-spacing: 1px;
+    animation: riichiBadgeSlamAnim 0.65s ease-out forwards;
+}
+
+@keyframes riichiBadgeSlamAnim {
+    0% { transform: translateY(30px); opacity: 0; }
+    30% { transform: translateY(0); opacity: 1; }
+    80% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-15px); opacity: 0; }
+}
+
+/* ==============================================================================
+   12. 승리(화료) 영수증 상단 황금빛 오로라(Glow) & 황금 폭죽 이펙트
+   ============================================================================== */
+.receipt-winner-box {
+    position: relative;
+    overflow: visible;
+    margin: 6px 0;
+    padding: 6px 8px;
+    border-radius: 8px;
+}
+
+/* 축하 백드롭 컨테이너 */
+.winner-celebration-backdrop {
+    position: absolute;
+    inset: -14px -18px;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+/* 화려한 골드 오로라 빛 번짐 (Radiant Glow) */
+.winner-glow-orb {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, rgba(255, 215, 0, 0.38) 0%, rgba(255, 179, 0, 0.22) 42%, transparent 72%);
+    animation: winnerGlowPulse 2.4s infinite alternate ease-in-out;
+}
+
+@keyframes winnerGlowPulse {
+    0% { transform: scale(0.92); opacity: 0.65; filter: brightness(1); }
+    100% { transform: scale(1.15); opacity: 1; filter: brightness(1.35); }
+}
+
+/* 방사형 회전 빛살 (Sunburst Light Rays) */
+.winner-light-rays {
+    position: absolute;
+    width: 200%;
+    height: 400%;
+    top: -150%;
+    left: -50%;
+    background: repeating-conic-gradient(
+        from 0deg at 50% 50%,
+        rgba(255, 215, 0, 0.12) 0deg 12deg,
+        transparent 12deg 24deg
+    );
+    opacity: 0.75;
+    animation: winnerRaysRotate 20s linear infinite;
+}
+
+@keyframes winnerRaysRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 황금색 폭죽 스파클 파티클 (Golden Fireworks) */
+.winner-fireworks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.winner-fireworks .firework-spark {
+    position: absolute;
+    color: #ffd700;
+    font-weight: 900;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.95), 0 0 20px #ffb300, 0 0 30px #ff8f00;
+    pointer-events: none;
+    animation: sparkBurstFloat 2.2s infinite ease-out;
+}
+
+/* 8개의 폭죽 파티클 위치와 각도, 타이밍 다양화 */
+.winner-fireworks .s1 { top: 18%; left: 8%; font-size: 1.1rem; animation-delay: 0.1s; }
+.winner-fireworks .s2 { top: 12%; left: 24%; font-size: 0.85rem; animation-delay: 0.35s; }
+.winner-fireworks .s3 { top: 22%; right: 18%; font-size: 1.25rem; animation-delay: 0.2s; }
+.winner-fireworks .s4 { top: 15%; right: 6%; font-size: 0.9rem; animation-delay: 0.5s; }
+.winner-fireworks .s5 { bottom: 18%; left: 14%; font-size: 0.8rem; animation-delay: 0.4s; }
+.winner-fireworks .s6 { bottom: 12%; left: 45%; font-size: 1rem; animation-delay: 0.15s; }
+.winner-fireworks .s7 { bottom: 20%; right: 28%; font-size: 0.85rem; animation-delay: 0.6s; }
+.winner-fireworks .s8 { bottom: 14%; right: 10%; font-size: 1.15rem; animation-delay: 0.3s; }
+
+@keyframes sparkBurstFloat {
+    0% {
+        transform: scale(0.2) translate(0, 0) rotate(0deg);
+        opacity: 0;
+    }
+    25% {
+        transform: scale(1.35) translate(-4px, -8px) rotate(45deg);
+        opacity: 1;
+        filter: brightness(1.5);
+    }
+    65% {
+        transform: scale(1.05) translate(-8px, -18px) rotate(90deg);
+        opacity: 0.85;
+    }
+    100% {
+        transform: scale(0.4) translate(-12px, -28px) rotate(135deg);
+        opacity: 0;
+    }
+}
+
+/* 승리자 이름 황금빛 찬란한 시머 텍스트 */
+.winner-name {
+    position: relative;
+    z-index: 2;
+    text-shadow: 0 0 14px rgba(255, 215, 0, 0.85), 0 0 28px rgba(255, 179, 0, 0.6) !important;
+    animation: winnerTextGlowAnim 1.8s infinite alternate ease-in-out;
+}
+
+@keyframes winnerTextGlowAnim {
+    0% {
+        filter: brightness(1);
+        text-shadow: 0 0 12px rgba(255, 215, 0, 0.75), 0 0 20px rgba(255, 160, 0, 0.5);
+    }
+    100% {
+        filter: brightness(1.25);
+        text-shadow: 0 0 20px rgba(255, 235, 59, 1), 0 0 35px rgba(255, 179, 0, 0.85), 0 0 50px rgba(255, 215, 0, 0.6);
+    }
 }
 
 
